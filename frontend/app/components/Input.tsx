@@ -1,21 +1,43 @@
 
 'use client';
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { use, useCallback, useEffect, useState } from "react";
+import { SignedIn, useAuth } from "@clerk/nextjs";
+import { useRouter, usePathname } from "next/navigation";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPause, faPaperPlane, faPaperclip } from '@fortawesome/free-solid-svg-icons';
 import { v7 as uuidv7 } from 'uuid';
 import useFetch from "../hooks/fetch-hook";
+import { CustomClientMessage, useChatHub } from "../hooks/chat-hook";
+import { send } from "process";
 
-export default function Input() {
+interface InputProps {
+    messageReceived?: boolean;
+    inputData?: CustomClientMessage;
+    chatId: string;
+    sendMessageToModel: (chatId: string, message: CustomClientMessage) => void;
+    isConnectedToWebSocket?: boolean;
+}
+
+export default function Input({ messageReceived, inputData, chatId,sendMessageToModel,isConnectedToWebSocket }: InputProps) {
     const [files, setFiles] = useState<File[]>([]);
     const [text, setText] = useState("");
+    // bind a state to inputData if provided
+    const [inputState, setInputState] = useState<CustomClientMessage | null>(inputData || null);
     const fetcher = useFetch();
+   
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
-    // uuidv7 will be used for chat id
+    const pathName = usePathname();
+    const { isSignedIn } = useAuth();
+    // Stop loading if messageReceived changes to true
+    useEffect(() => {
+        if (messageReceived) {
+            setLoading(false);
+        }
+    }, [messageReceived]);
 
+    
     const removeFile = (index: number) => {
         setFiles((prev) => prev.filter((_, i) => i !== index));
     };
@@ -26,29 +48,52 @@ export default function Input() {
         }
     };
 
+    useEffect(() => {
+        if (inputState &&  isConnectedToWebSocket) {
+            sendMessageToModel( chatId, inputState);
+        }
+    }, [inputState, sendMessageToModel, isConnectedToWebSocket]);
+
     const handleSend = async () => {
-        const chatId = uuidv7();
         setLoading(true);
         console.log(files, text);
-        // window.history.replaceState(null, '', `/chat/${chatId}`);
         const formData = new FormData();
-        formData.append('text', text);
         formData.append('chatId', chatId);
         files.forEach((file) => {
             formData.append('files', file);
         });
         console.log("done appending files to formData");
-        let response = await fetcher('/', {
-            method: 'POST',
-            body: formData,
-        });
-        let data = await response.json();
-        console.log(data);
-        //await new Promise((resolve) => setTimeout(resolve, 2000));
-        setLoading(false);
-        setText("");
-        setFiles([]);
-        // Generate a uuidv7 and update the URL to /chat/{id} without leaving the page or triggering navigation
+        try {
+            let response = await fetcher('/api/chat', {
+                method: 'POST',
+                body: formData,
+            });
+            // CONSOLE STATUS
+            console.log("Response status:", response.status);
+            let data = await response.json();
+            // got a sample request of this format
+            let CustomClientMessage: CustomClientMessage = {
+                text,
+                role: "user", // default role is user
+                files: data
+            }
+            console.log(data);
+            setText("");
+            setFiles([]);
+            if (isSignedIn && !pathName.includes(`/chats/${chatId}`)) {
+                // If the user is signed in and not already on the chat page, redirect to unique chat page
+                sessionStorage.setItem('trigger', chatId);
+                sessionStorage.setItem('message', JSON.stringify(CustomClientMessage));
+                router.push(`/chats/${chatId}`);
+            }
+            else{
+                setInputState(CustomClientMessage);
+            }
+        } catch (error) {
+            console.error("Error sending message:", error);
+            setLoading(false);
+        }
+
     };
 
     return (

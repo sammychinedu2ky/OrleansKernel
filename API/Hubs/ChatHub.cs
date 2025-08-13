@@ -10,9 +10,14 @@ public interface IChatHub
     
 }
 
+[GenerateSerializer]
 public class CustomClientMessage
 {
-    public required string Test { get; set; }
+    [Id(0)]
+    public required string Text { get; set; }
+    [Id(1)]
+    public required string Role { get; set; } = "user"; // default role is user
+    [Id(2)]
     public List<FileMessage> Files { get; set; } = [];
 }
 
@@ -32,27 +37,26 @@ public class ChatHub(
     IGrainFactory grainFactory,
     ILogger<ChatHub> logger) : Hub<IChatHub>
 {
-    public async Task JoinChatRoom(string chatRoomId)
+    public async Task SendMessageToModel(string chatId, CustomClientMessage message)
     {
         var claimPrincipal = Context.User!;
         var isAuthenticated = claimPrincipal.Identity?.IsAuthenticated ?? false;
         var userId = RetrieveUserId.GetUserId(claimPrincipal);
         // need to store the userId and chatRoomId in a grain
-        logger.LogInformation("User {UserId} joined chat room {ChatRoomId}", Context.UserIdentifier, chatRoomId);
-        await Groups.AddToGroupAsync(Context.ConnectionId, chatRoomId);
-    }
-    
-    public async Task SendToModel(string chatRoomId, CustomClientMessage message)
-    {
-        logger.LogInformation("User {UserId} sent message to chat room {ChatRoomId}", Context.UserIdentifier, chatRoomId);
+        logger.LogInformation("User {UserId} sent message to chat room {ChatId}", Context.UserIdentifier, chatId);
         // Here you can process the message and send it to the model
         // For now, we just log it
-        await Clients.Group(chatRoomId).ReceiveMessage(chatRoomId, message);
+        var fakeMessage = new CustomClientMessage
+        {
+            Role = "assistant", // assuming the model responds as an assistant
+            Text = "This is a test message",
+            Files = message.Files
+        };
+        // ought to perform some grain calls to process the message
+        logger.LogInformation("Received message: {Message}", fakeMessage.Text);
+        // send to the client that send this message
+        await Clients.Caller.ReceiveMessage(chatId, fakeMessage);
     }
     
-    public async Task LeaveChatRoom(string chatRoomId)
-    {
-        logger.LogInformation("User {UserId} left chat room {ChatRoomId}", Context.UserIdentifier, chatRoomId);
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, chatRoomId);
-    }
+    
 }

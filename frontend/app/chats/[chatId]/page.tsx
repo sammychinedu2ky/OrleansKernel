@@ -1,16 +1,26 @@
 'use client';
-import Image from "next/image";
-import Input from "./components/Input";
-import Sidebar from "./components/SideBar";
-import { useEffect, useRef, useState } from "react";
-import { SignedIn } from "@clerk/nextjs";
-import { CustomClientMessage, useChatHub } from "./hooks/chat-hook";
-import useFetch from "./hooks/fetch-hook";
-import { v7 as uuidv7 } from 'uuid';
-import { json } from "stream/consumers";
-export default function Home() {
+import { SignedIn } from '@clerk/nextjs';
+import { useParams } from 'next/navigation';
+
+import { useEffect, useRef, useState } from 'react';
+import Input from '@/app/components/Input';
+import Sidebar from '@/app/components/SideBar';
+import { CustomClientMessage, useChatHub } from '@/app/hooks/chat-hook';
+import useFetch from '@/app/hooks/fetch-hook';
+import {use} from 'react';
+
+
+export default function ChatPage({
+  params,
+} : {
+    params: Promise<{ chatId: string }>
+}) {
+  const { chatId } = use(params);
   const fetcher = useFetch();
-    const [chatId, setChatId] = useState<string>(uuidv7());
+
+
+
+    console.log("Chat ID from params:", chatId);
     const inputBarRef = useRef<HTMLDivElement>(null);
     const [messageReceived, setMessageReceived] = useState(false);
     const [isConnectedToWebSocket, setIsConnectedToWebSocket] = useState(false);
@@ -42,17 +52,28 @@ export default function Home() {
         return () => window.removeEventListener("resize", updateInputBarPosition);
     }, []);
 
-
+    if (sessionStorage.getItem('trigger') === chatId) {
+        let message = JSON.parse(sessionStorage.getItem('message') || '{}');
+        console.log("Message from sessionStorage:", message);
+        if (message && message.text) {
+            setMessages((prev) => [...prev, message]);
+            setMessageReceived(false);
+            sendMessageToModel(chatId, message);
+        }
+        // remove from session Storage
+        sessionStorage.removeItem('trigger');
+        sessionStorage.removeItem('message');
+    }
     useEffect( () => {
         if (chatId) {
             fetcher('/api/chat/' + chatId, {
-          method: 'GET',
+            method: 'GET',
             })
             .then(response => response.json())
             .then(data => {
-          // Handle the fetched data
-          console.log(data);
-          setMessages(data || []);
+            // Handle the fetched data
+            console.log(data);
+            setMessages(data || []);
             });
         }
     }, [chatId, fetcher]);
@@ -104,4 +125,3 @@ export default function Home() {
         </div>
     );
 }
-

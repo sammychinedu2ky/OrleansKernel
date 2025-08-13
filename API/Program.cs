@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using API.Endpoints;
 using API.Grains;
 using API.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -80,7 +81,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 app.UseCors("AllowFrontend");
-app.UseHttpsRedirection();
+
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -124,9 +125,11 @@ app.MapPost("/", async (
     //     Console.WriteLine(AppContext.BaseDirectory);
     //     var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
     //     return new { UserId = userId };
-    }).DisableAntiforgery()
+    }).DisableAntiforgery().RequireCors("AllowFrontend")
     .WithName("GetHelloWorld");
 
-// app.MapHub<ChatHub>("/api/hubs/chat");
+app.MapChatEndpoints();
+app.MapHub<ChatHub>("/api/hubs/chat").RequireCors("AllowFrontend")
+    .RequireAuthorization();
 
 app.Run();
