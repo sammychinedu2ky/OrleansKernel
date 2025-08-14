@@ -82,11 +82,13 @@ export function useChatHub(
     return () => {
       connection.stop();
     };
-  }, []);
+  }, [token]);
 
   const sendMessageToModel = useCallback(
     (chatId: string, message: CustomClientMessage) => {
-      if (connectionRef.current?.state === HubConnectionState.Connected) {
+        console.log("state of connectionRef:", connectionRef.current?.state);
+        if (connectionRef.current?.state === HubConnectionState.Connected) {
+          console.log("Sending message to model:", message);
         connectionRef.current
           .invoke("SendMessageToModel", chatId, message)
           .catch((err) => {

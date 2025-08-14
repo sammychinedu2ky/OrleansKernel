@@ -86,50 +86,50 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapPost("/", async (
-    [FromForm] IFormFileCollection files, [FromServices] IGrainFactory grainFactory, ClaimsPrincipal claim) =>
-    {
-         var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-        var blobFolder = Path.Combine(projectRoot, "BlobStorage");
-        // creates folder if it doens't exist
-        Directory.CreateDirectory(blobFolder);
-        
-        // Simulate saving the file and generating a file ID
-        var fileMessages = new List<FileMessage>();
-        foreach (var formFile in files)
-        {
-            if (formFile.Length > 0)
-            {
-                var fileId = Guid.NewGuid().ToString();
-                var fileExtension = Path.GetExtension(formFile.FileName);
-                var filePath = Path.Combine(blobFolder, fileId);
-                using var stream = formFile.OpenReadStream();
-                using var fileStream = new FileStream(filePath, FileMode.Create);
-                await stream.CopyToAsync(fileStream);
-
-                var fileMessage = new FileMessage
-                {
-                    FileId = fileId,
-                    FileName = formFile.FileName,
-                    FileType = formFile.ContentType
-                };
-                
-                fileMessages.Add(fileMessage);
-            }
-           
-        }
-
-        return Results.Ok(fileMessages);
-        
-    //    // Console.WriteLine(context.User.Identity.Name);
-    //     Console.WriteLine(AppContext.BaseDirectory);
-    //     var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
-    //     return new { UserId = userId };
-    }).DisableAntiforgery().RequireCors("AllowFrontend")
-    .WithName("GetHelloWorld");
+// app.MapPost("/", async (
+//     [FromForm] IFormFileCollection files, [FromServices] IGrainFactory grainFactory, ClaimsPrincipal claim) =>
+//     {
+//          var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+//         var blobFolder = Path.Combine(projectRoot, "BlobStorage");
+//         // creates folder if it doens't exist
+//         Directory.CreateDirectory(blobFolder);
+//         
+//         // Simulate saving the file and generating a file ID
+//         var fileMessages = new List<FileMessage>();
+//         foreach (var formFile in files)
+//         {
+//             if (formFile.Length > 0)
+//             {
+//                 var fileId = Guid.NewGuid().ToString();
+//                 var fileExtension = Path.GetExtension(formFile.FileName);
+//                 var filePath = Path.Combine(blobFolder, fileId);
+//                 using var stream = formFile.OpenReadStream();
+//                 using var fileStream = new FileStream(filePath, FileMode.Create);
+//                 await stream.CopyToAsync(fileStream);
+//
+//                 var fileMessage = new FileMessage
+//                 {
+//                     FileId = fileId,
+//                     FileName = formFile.FileName,
+//                     FileType = formFile.ContentType
+//                 };
+//                 
+//                 fileMessages.Add(fileMessage);
+//             }
+//            
+//         }
+//
+//         return Results.Ok(fileMessages);
+//         
+//     //    // Console.WriteLine(context.User.Identity.Name);
+//     //     Console.WriteLine(AppContext.BaseDirectory);
+//     //     var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
+//     //     return new { UserId = userId };
+//     }).DisableAntiforgery().RequireCors("AllowFrontend")
+//     .WithName("GetHelloWorld");
 
 app.MapChatEndpoints();
-app.MapHub<ChatHub>("/api/hubs/chat").RequireCors("AllowFrontend")
+app.MapHub<ChatHub>("/api/hubs/chat")
     .RequireAuthorization();
 
 app.Run();

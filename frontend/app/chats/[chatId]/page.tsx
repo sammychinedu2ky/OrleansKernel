@@ -7,16 +7,16 @@ import Input from '@/app/components/Input';
 import Sidebar from '@/app/components/SideBar';
 import { CustomClientMessage, useChatHub } from '@/app/hooks/chat-hook';
 import useFetch from '@/app/hooks/fetch-hook';
-import {use} from 'react';
+import { use } from 'react';
 
 
 export default function ChatPage({
-  params,
-} : {
+    params,
+}: {
     params: Promise<{ chatId: string }>
 }) {
-  const { chatId } = use(params);
-  const fetcher = useFetch();
+    const { chatId } = use(params);
+    const fetcher = useFetch();
 
 
 
@@ -25,7 +25,8 @@ export default function ChatPage({
     const [messageReceived, setMessageReceived] = useState(false);
     const [isConnectedToWebSocket, setIsConnectedToWebSocket] = useState(false);
     const [messages, setMessages] = useState<CustomClientMessage[]>([]);
-    const {sendMessageToModel} = useChatHub({
+    let inputData: CustomClientMessage | undefined = undefined;
+    const { sendMessageToModel } = useChatHub({
         onReceiveMessage: (chatId: string, message: CustomClientMessage) => {
             setMessages((prev) => [...prev, message]);
             setMessageReceived(true);
@@ -52,32 +53,33 @@ export default function ChatPage({
         return () => window.removeEventListener("resize", updateInputBarPosition);
     }, []);
 
-    if (sessionStorage.getItem('trigger') === chatId) {
-        let message = JSON.parse(sessionStorage.getItem('message') || '{}');
-        console.log("Message from sessionStorage:", message);
-        if (message && message.text) {
-            setMessages((prev) => [...prev, message]);
-            setMessageReceived(false);
-            sendMessageToModel(chatId, message);
-        }
-        // remove from session Storage
-        sessionStorage.removeItem('trigger');
-        sessionStorage.removeItem('message');
-    }
-    useEffect( () => {
+    useEffect(() => {
         if (chatId) {
             fetcher('/api/chat/' + chatId, {
-            method: 'GET',
+                method: 'GET',
             })
-            .then(response => response.json())
-            .then(data => {
-            // Handle the fetched data
-            console.log(data);
-            setMessages(data || []);
-            });
+                .then(response => response.json())
+                .then(data => {
+                    // Handle the fetched data
+                    console.log(data);
+                    setMessages((prev) => [...prev, ...data]);
+                });
         }
     }, [chatId, fetcher]);
-
+    useEffect(() => {
+        if (sessionStorage.getItem('trigger') === chatId) {
+            let message = JSON.parse(sessionStorage.getItem('message') || '{}');
+            console.log("Message from sessionStorage:", message);
+            if (message && message.text) {
+                setMessages((prev) => [...prev, message]);
+                setMessageReceived(false);
+                inputData = message;
+            }
+            // remove from session Storage
+            sessionStorage.removeItem('trigger');
+            sessionStorage.removeItem('message');
+        }
+    }, [chatId]);
     return (
         <div className="text-black">
             <div className="flex justify-between container m-auto border-2 min-h-screen">
@@ -118,7 +120,7 @@ export default function ChatPage({
                     style={{ left: 0, width: "100%" }}
                 >
                     <div className="w-full max-w-2xl">
-                        <Input chatId={chatId} messageReceived={messageReceived} sendMessageToModel={sendMessageToModel} isConnectedToWebSocket={isConnectedToWebSocket} />
+                        <Input chatId={chatId} messageReceived={messageReceived} inputData={inputData} sendMessageToModel={sendMessageToModel} isConnectedToWebSocket={isConnectedToWebSocket} />
                     </div>
                 </div>
             </div>
