@@ -4,7 +4,7 @@ import { faCommentDots, faPlus } from '@fortawesome/free-solid-svg-icons';
 
 export default function SideBar() {
     return (
-        <aside className="h-screen w-64 bg-gray-900 text-white flex flex-col border-r border-gray-800">
+        <aside className="h-screen w-64 bg-gray-900 text-white flex flex-col border-r border-gray-800 sticky top-0">
             <div className="flex items-center justify-between px-4 py-4 border-b border-gray-800">
                 <span className="text-lg font-bold">Chats</span>
                 <button className="bg-gray-700 hover:bg-gray-600 rounded p-2">
@@ -23,7 +23,7 @@ export default function SideBar() {
                 ))}
             </nav>
             <div className="px-4 py-4 border-t border-gray-800 text-xs text-gray-400">
-                <span>ChatGPT Sidebar Dummy</span>
+                <span> Sidebar Dummy</span>
             </div>
         </aside>
     );

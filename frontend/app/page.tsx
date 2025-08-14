@@ -68,7 +68,7 @@ export default function Home() {
                 </SignedIn>
                 <div
                     id="chat-card"
-                    className="bg-white rounded-lg shadow-lg p-8 w-full relative flex flex-col"
+                    className="bg-white  mt-10 rounded-lg shadow-lg p-8 w-full relative flex flex-col"
                 >
                     <h1 className="text-3xl font-bold mb-4">Welcome to UtilGPT</h1>
                     <p className="mb-4">Tell me what you'll like to do with your files.</p>

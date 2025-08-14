@@ -40,7 +40,7 @@ export default function RootLayout({
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
           <header className="bg-slate-50 border-b-2">
-            <div className='flex m-auto container justify-between  items-center p-4 gap-4 h-16  text-black'>
+            <div className='flex m-auto container justify-between items-center p-4 gap-4 h-16 text-black fixed top-0 left-0 right-0 z-50 bg-slate-50 border-b-2'>
               <div>
                 <a href="/" className="text-2xl font-bold ">
                   UtilGPT
