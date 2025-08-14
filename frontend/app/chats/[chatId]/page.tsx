@@ -94,7 +94,7 @@ const fetchedRef = useRef(false);
                 </SignedIn>
                 <div
                     id="chat-card"
-                    className="bg-white rounded-lg shadow-lg p-8  mt-52 w-full relative flex flex-col"
+                    className="bg-white rounded-lg shadow-lg p-8  mt-10 w-full relative flex flex-col"
                 >
                     <h1 className="text-3xl font-bold mb-4">Welcome to UtilGPT</h1>
                     <p className="mb-4">Tell me what you'll like to do with your files.</p>
@@ -110,9 +110,11 @@ const fetchedRef = useRef(false);
                                 {message.files && message.files.length > 0 && (
                                     <div className="mt-2">
                                         {message.files.map((file, fileIndex) => (
-                                            <a key={fileIndex} href={file.fileId} className="text-blue-600 hover:underline">
+                                            <div key={fileIndex}>
+                                            <a href={file.fileId} className="text-blue-600 hover:underline">
                                                 {file.fileName}
                                             </a>
+                                        </div>
                                         ))}
                                     </div>
                                 )}
