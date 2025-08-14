@@ -15,14 +15,20 @@ interface InputProps {
     inputData?: CustomClientMessage;
     chatId: string;
     sendMessageToModel: (chatId: string, message: CustomClientMessage) => void;
+    onUserMessage?: (message: CustomClientMessage) => void; 
+    onMessageHandled: () => void;
     isConnectedToWebSocket?: boolean;
 }
 
-export default function Input({ messageReceived, inputData, chatId,sendMessageToModel,isConnectedToWebSocket }: InputProps) {
+export default function Input({ messageReceived, inputData, chatId,sendMessageToModel,isConnectedToWebSocket,
+    onUserMessage, onMessageHandled
+ }: InputProps) {
+console.log("message received is", messageReceived);
     const [files, setFiles] = useState<File[]>([]);
     const [text, setText] = useState("");
     // bind a state to inputData if provided
-    const [inputState, setInputState] = useState<CustomClientMessage | null>(inputData || null);
+    const [inputState, setInputState] = useState<CustomClientMessage | null>(null);
+
     const fetcher = useFetch();
    
     const [loading, setLoading] = useState(false);
@@ -32,11 +38,19 @@ export default function Input({ messageReceived, inputData, chatId,sendMessageTo
     const { isSignedIn } = useAuth();
     // Stop loading if messageReceived changes to true
     useEffect(() => {
+        console.log("loading changed: before condition", loading);
+        console.log("messageReceived changed:", messageReceived);
         if (messageReceived) {
             setLoading(false);
+            console.log("loading changed: after condition", loading);
+            onMessageHandled();
         }
     }, [messageReceived]);
-
+    useEffect(() => {
+        if (inputData) {
+            setInputState(inputData);
+        }
+    }, [inputData]);
     
     const removeFile = (index: number) => {
         setFiles((prev) => prev.filter((_, i) => i !== index));
@@ -49,7 +63,10 @@ export default function Input({ messageReceived, inputData, chatId,sendMessageTo
     };
 
     useEffect(() => {
+        console.log("inputState changed:", inputState);
+        console.log("isConnectedToWebSocket:", isConnectedToWebSocket);
         if (inputState &&  isConnectedToWebSocket) {
+            console.log("Sending inputState to model:", inputState);
             sendMessageToModel( chatId, inputState);
         }
     }, [inputState, sendMessageToModel, isConnectedToWebSocket]);
@@ -76,6 +93,9 @@ export default function Input({ messageReceived, inputData, chatId,sendMessageTo
                 text,
                 role: "user", // default role is user
                 files: data
+            }
+            if (onUserMessage) {
+                onUserMessage(CustomClientMessage);
             }
             console.log(data);
             setText("");

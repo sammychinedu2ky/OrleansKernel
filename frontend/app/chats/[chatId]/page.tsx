@@ -17,7 +17,7 @@ export default function ChatPage({
 }) {
     const { chatId } = use(params);
     const fetcher = useFetch();
-
+const fetchedRef = useRef(false);
 
 
     console.log("Chat ID from params:", chatId);
@@ -25,7 +25,8 @@ export default function ChatPage({
     const [messageReceived, setMessageReceived] = useState(false);
     const [isConnectedToWebSocket, setIsConnectedToWebSocket] = useState(false);
     const [messages, setMessages] = useState<CustomClientMessage[]>([]);
-    let inputData: CustomClientMessage | undefined = undefined;
+    console.log("Messages state initialized:", messages);
+    const [inputData, setInputData] = useState<CustomClientMessage | undefined>(undefined);
     const { sendMessageToModel } = useChatHub({
         onReceiveMessage: (chatId: string, message: CustomClientMessage) => {
             setMessages((prev) => [...prev, message]);
@@ -52,9 +53,12 @@ export default function ChatPage({
         window.addEventListener("resize", updateInputBarPosition);
         return () => window.removeEventListener("resize", updateInputBarPosition);
     }, []);
-
+  const addMessage = (message: CustomClientMessage) => {
+        setMessages(prev => [...prev, message]);
+    };
     useEffect(() => {
-        if (chatId) {
+        if (chatId && !fetchedRef.current) {
+            fetchedRef.current = true; // Set the flag to true after the first fetch
             fetcher('/api/chat/' + chatId, {
                 method: 'GET',
             })
@@ -62,18 +66,20 @@ export default function ChatPage({
                 .then(data => {
                     // Handle the fetched data
                     console.log(data);
-                    setMessages((prev) => [...prev, ...data]);
+                    console.log("Setting messages state with fetched data:", data);
+                    setMessages((prev) => [ ...data,...prev]);
                 });
         }
-    }, [chatId, fetcher]);
+    }, [chatId]);
     useEffect(() => {
         if (sessionStorage.getItem('trigger') === chatId) {
             let message = JSON.parse(sessionStorage.getItem('message') || '{}');
             console.log("Message from sessionStorage:", message);
             if (message && message.text) {
+                console.log("Adding message from sessionStorage:", message);
                 setMessages((prev) => [...prev, message]);
                 setMessageReceived(false);
-                inputData = message;
+                setInputData(message);
             }
             // remove from session Storage
             sessionStorage.removeItem('trigger');
@@ -120,7 +126,11 @@ export default function ChatPage({
                     style={{ left: 0, width: "100%" }}
                 >
                     <div className="w-full max-w-2xl">
-                        <Input chatId={chatId} messageReceived={messageReceived} inputData={inputData} sendMessageToModel={sendMessageToModel} isConnectedToWebSocket={isConnectedToWebSocket} />
+                        <Input chatId={chatId} messageReceived={messageReceived} inputData={inputData === null ? undefined : inputData} sendMessageToModel={sendMessageToModel} 
+                        onUserMessage={addMessage}
+                        isConnectedToWebSocket={isConnectedToWebSocket}
+                        onMessageHandled={() => setMessageReceived(false)}
+                        />
                     </div>
                 </div>
             </div>

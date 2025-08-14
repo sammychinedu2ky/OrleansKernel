@@ -27,6 +27,9 @@ export default function Home() {
             setIsConnectedToWebSocket(false);
         },
     });
+      const addMessage = (message: CustomClientMessage) => {
+        setMessages(prev => [...prev, message]);
+    };
     useEffect(() => {
         function updateInputBarPosition() {
             const chatCard = document.getElementById("chat-card");
@@ -43,19 +46,19 @@ export default function Home() {
     }, []);
 
 
-    useEffect( () => {
-        if (chatId) {
-            fetcher('/api/chat/' + chatId, {
-          method: 'GET',
-            })
-            .then(response => response.json())
-            .then(data => {
-          // Handle the fetched data
-          console.log(data);
-          setMessages(data || []);
-            });
-        }
-    }, [chatId, fetcher]);
+    // useEffect( () => {
+    //     if (chatId) {
+    //         fetcher('/api/chat/' + chatId, {
+    //       method: 'GET',
+    //         })
+    //         .then(response => response.json())
+    //         .then(data => {
+    //       // Handle the fetched data
+    //       console.log(data);
+    //       setMessages(data || []);
+    //         });
+    //     }
+    // }, [chatId, fetcher]);
 
     return (
         <div className="text-black">
@@ -97,7 +100,8 @@ export default function Home() {
                     style={{ left: 0, width: "100%" }}
                 >
                     <div className="w-full max-w-2xl">
-                        <Input chatId={chatId} messageReceived={messageReceived} sendMessageToModel={sendMessageToModel} isConnectedToWebSocket={isConnectedToWebSocket} />
+                        <Input chatId={chatId} messageReceived={messageReceived} sendMessageToModel={sendMessageToModel} isConnectedToWebSocket={isConnectedToWebSocket}
+                         onMessageHandled={() => setMessageReceived(false)} />
                     </div>
                 </div>
             </div>
