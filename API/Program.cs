@@ -8,17 +8,36 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.SemanticKernel;
 
 using Microsoft.SemanticKernel.Agents.Orchestration.GroupChat;
+using Orleans.Configuration;
+
 var builder = WebApplication.CreateBuilder(args);
 var apiKey = builder.Configuration["AI-ApiKey"] ?? throw new ArgumentNullException("AI-ApiKey is not set in configuration.");
 var aiEndpoint = builder.Configuration["AI-Endpoint"] ?? throw new ArgumentNullException("AI-Endpoint is not set in configuration.");
 var aiModelName = builder.Configuration["AI-DeploymentName"] ?? throw new ArgumentNullException("AI-DeploymentName is not set in configuration.");
-
+builder.Services.AddLogging(loggingBuilder => loggingBuilder.AddConsole().SetMinimumLevel(LogLevel.Trace));
 builder.Services.AddAzureOpenAIChatCompletion(aiModelName, aiEndpoint, apiKey);
+builder.Services.AddTransient<Kernel>(sp =>
+{
+    // var logger = sp.GetRequiredService<ILogger<Kernel>>();
+    return new Kernel(sp); // Inject the logger into the Kernel
+});
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// builder.Services.AddOpenApi();
 builder.AddKeyedRedisClient("redis");
-builder.UseOrleans();
+// builder.UseOrleans();
+builder.UseOrleans((siloBuilder) =>
+{
+    siloBuilder.Configure<GrainCollectionOptions>(options =>
+    {
+        options.CollectionAge = TimeSpan.FromMinutes(30); // unrelated, but example
+    });
+
+    siloBuilder.Configure<MessagingOptions>(options =>
+    {
+        options.ResponseTimeout = TimeSpan.FromMinutes(2); // extend timeout
+    });
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
