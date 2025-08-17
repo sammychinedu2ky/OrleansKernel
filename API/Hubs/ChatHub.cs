@@ -55,7 +55,7 @@ public class ChatHub(
     ILogger<ChatHub> logger) : Hub<IChatHub>
 {
    [Experimental("SKEXP0110")]
-   public async Task SendMessageToModel(string chatId, CustomClientMessage message)
+public async Task SendMessageToModel(string chatId, CustomClientMessage message)
 {
     var claimPrincipal = Context.User!;
     var userId = RetrieveUserId.GetUserId(claimPrincipal);
@@ -72,79 +72,101 @@ public class ChatHub(
     try
     {
         var agentKernel = kernel.Clone();
+        logger.LogDebug("Cloned Kernel for chatId: {ChatId}", chatId);
+
         agentKernel.Plugins.AddFromType<ChatPlugin>("chat_plugin");
-        logger.LogInformation("Available plugins: {Plugins}", string.Join(", ", agentKernel.Plugins.Select(p => p.Name)));
-        
+        foreach (var plugin in agentKernel.Plugins)
+        {
+            foreach (var function in plugin)
+            {
+                logger.LogDebug("Registered plugin: {PluginName}, Function: {FunctionName}, Description: {Description}",
+                    plugin.Name, function.Name, function.Description);
+            }
+        }
+
         var agent = new ChatCompletionAgent()
         {
             Name = "ChatAgent",
-            Instructions = "You are a helpful assistant. When the user asks a question, check the available tools and provide a response.",
+            Instructions = "You are a helpful assistant. When the user asks about their name or identity, use the 'get_user_name' function. For questions about age, use the 'get_age' function. For other questions, provide a natural language response or check available tools.",
             Kernel = agentKernel,
-            Arguments = new KernelArguments(new AzureOpenAIPromptExecutionSettings()
+            Arguments = new(new AzureOpenAIPromptExecutionSettings
             {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             })
-            
-            
         };
-            // await foreach (var response in agent.InvokeAsync(
-            //     new ChatMessageContent(AuthorRole.User, message.Text),
-            //     null,
-            //    null,
-            //     CancellationToken.None))
-            // {
-            //     // Process each response, e.g.:
-            //     logger.LogInformation("Agent response: {Response}", response.Message);
-            //     await Clients.Caller.ReceiveMessage(chatId, new CustomClientMessage { Text = response.Message.ToString(), Role = "assistant" });
-            //     return;
-            // }
-            var chatCompletionService = agent.Kernel.GetRequiredService<IChatCompletionService>();
-            var manager = new StandardMagenticManager(
-                chatCompletionService,
-                new OpenAIPromptExecutionSettings())
-            {
-                MaximumInvocationCount = 5,
-            };
+        logger.LogDebug("ChatCompletionAgent created with name: {AgentName}", agent.Name);
 
-            ChatHistory history = [];
-            var orchestration = new SequentialOrchestration(agent)
-            {
-                ResponseCallback = (ChatMessageContent response) =>
-                {
-                    history.Add(response);
-                    logger.LogInformation("Orchestration response: {Response}", response.Content);
-                    return ValueTask.CompletedTask;
-                }
-            };
+        var chatCompletionService = agent.Kernel.GetRequiredService<IChatCompletionService>();
+        logger.LogDebug("Retrieved IChatCompletionService for chatId: {ChatId}", chatId);
+        var grain = grainFactory.GetGrain<IChatGrain>(chatId);
+        logger.LogDebug("Retrieved ChatGrain for chatId: {ChatId}", chatId);
+        var res = await grain.SendMessageAsync(userId, message);
+        Clients.Caller.ReceiveMessage(chatId, res);
+        return;
+        // var manager = new StandardMagenticManager(
+        //     chatCompletionService,
+        //     new AzureOpenAIPromptExecutionSettings()
+        //     {
+        //         ChatSystemPrompt = "You are a helpful assistant. When the available agents plugins to answer the users question",
+        //             FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+        //             ChatDeveloperPrompt = "You are a helpful assistant. Use the available functions to answer the user's question when applicable."
+        //             
+        //
+        //     })
+        // {
+        //     MaximumInvocationCount = 5,
+        // };
+        // logger.LogDebug("StandardMagenticManager created with max invocations: {MaxInvocations}", manager.MaximumInvocationCount);
+        // ChatHistory history = [];
+        // var orchestration = new MagenticOrchestration<string,CustomClientMessage>(
+        //     manager
+        //     , agent,agent)
+        // {
+        //     ResponseCallback = (ChatMessageContent response) =>
+        //     {
+        //         history.Add(response);
+        //         logger.LogDebug("Orchestration response: {Response}", response.Content);
+        //         return ValueTask.CompletedTask;
+        //     }, 
+        //     ResultTransform = new StructuredOutputTransform<CustomClientMessage>(
+        //         chatCompletionService,
+        //         new OpenAIPromptExecutionSettings
+        //         {
+        //             ResponseFormat = typeof(CustomClientMessage)
+        //         }
+        //     ).TransformAsync,
+        //
+        // };
+        //
+        // logger.LogInformation("Starting InProcessRuntime...");
+        // var runTime = new InProcessRuntime();
+        // await runTime.StartAsync();
+        // logger.LogInformation("InProcessRuntime started.");
+        //
+        // logger.LogInformation("Invoking orchestration...");
+        // var result = await orchestration.InvokeAsync(message.Text, runTime);
+        //
+        // logger.LogInformation("Collecting orchestration results...");
+        // var resulty = await result.GetValueAsync(TimeSpan.FromSeconds(240)); // Reduced timeout for faster feedback
+        // if (resulty == null)
+        // {
+        //     logger.LogWarning("Orchestration returned null result for chatId: {ChatId}", chatId);
+        //     await Clients.Caller.ReceiveMessage(chatId, new CustomClientMessage { Text = "No response generated.", Role = "assistant" });
+        // }
+        // else
+        // {
+        //     logger.LogInformation("Orchestration result: {Result}", JsonSerializer.Serialize(resulty));
+        //     await Clients.Caller.ReceiveMessage(chatId, resulty); // Fixed: Send resulty
+        // }
 
-            logger.LogInformation("Starting InProcessRuntime...");
-            var runTime = new InProcessRuntime();
-            await runTime.StartAsync();
-            logger.LogInformation("InProcessRuntime started.");
-
-            logger.LogInformation("Invoking orchestration...");
-            var result = await orchestration.InvokeAsync(message.Text, runTime);
-
-            logger.LogInformation("Collecting orchestration results...");
-            var resulty = await result.GetValueAsync(TimeSpan.FromSeconds(300));
-            if (resulty == null)
-            {
-                logger.LogWarning("Orchestration returned null result for chatId: {ChatId}", chatId);
-                await Clients.Caller.ReceiveMessage(chatId, new CustomClientMessage { Text = "No response generated.", Role = "assistant" });
-            }
-            else
-            {
-                logger.LogInformation("Orchestration result: {Result}", JsonSerializer.Serialize(resulty));
-                await Clients.Caller.ReceiveMessage(chatId, default);
-                
-                
-                
-                
-                
-                
-                
-                
-            }
+        logger.LogInformation("Running InProcessRuntime until idle...");
+       // await runTime.RunUntilIdleAsync();
+        logger.LogInformation("InProcessRuntime completed.");
+    }
+    catch (TimeoutException ex)
+    {
+        logger.LogError(ex, "Timeout during orchestration for chatId: {ChatId}", chatId);
+        await Clients.Caller.ReceiveMessage(chatId, new CustomClientMessage { Text = "Request timed out.", Role = "assistant" });
     }
     catch (Exception ex)
     {
