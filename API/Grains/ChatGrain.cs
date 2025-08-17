@@ -5,6 +5,7 @@ using API.Hubs;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Agents.Magentic;
+using Microsoft.SemanticKernel.Agents.Orchestration.GroupChat;
 using Microsoft.SemanticKernel.Agents.Orchestration.Transforms;
 using Microsoft.SemanticKernel.Agents.Runtime.InProcess;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -25,7 +26,9 @@ public interface IChatGrain : IGrainWithStringKey
 public class ChatGrain(Kernel kernel, ILogger<ChatGrain> logger) : Grain, IChatGrain
 {
     private ChatCompletionAgent _agent;
-
+    private ChatCompletionAgent writer;
+    private ChatCompletionAgent editor;
+    public  ChatHistory history = [];
 
     [Experimental("SKEXP0120")]
     public override Task OnActivateAsync(CancellationToken cancellationToken)
@@ -38,8 +41,30 @@ public class ChatGrain(Kernel kernel, ILogger<ChatGrain> logger) : Grain, IChatG
         _agent = new ChatCompletionAgent()
         {
             Name = "ChatAgent",
+            Description = "A chat agent",
             Instructions =
                 "You are a helpful assistant. When the user asks about their name or identity, use the 'get_user_name' function. For questions about age, use the 'get_age' function. For other questions, provide a natural language response or check available tools.",
+            Kernel = agentKernel,
+            Arguments = new(new AzureOpenAIPromptExecutionSettings
+            {
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+            })
+        };
+         writer = new ChatCompletionAgent {
+            Name = "CopyWriter",
+            // Description = "A copy writer",
+            Instructions = "You are a copywriter with ten years of experience and are known for brevity and a dry humor. The goal is to refine and decide on the single best copy as an expert in the field. Only provide a single proposal per response. You're laser focused on the goal at hand. Don't waste time with chit chat. Consider suggestions when refining an idea.",
+            Kernel = agentKernel,
+            Arguments = new(new AzureOpenAIPromptExecutionSettings
+            {
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+            })
+        };
+
+        editor = new ChatCompletionAgent {
+            Name = "Reviewer",
+            // Description = "An editor.",
+            Instructions = "You are an art director who has opinions about copywriting born of a love for David Ogilvy. The goal is to determine if the given copy is acceptable to print. If so, state that it is approved. If not, provide insight on how to refine suggested copy without example.",
             Kernel = agentKernel,
             Arguments = new(new AzureOpenAIPromptExecutionSettings
             {
@@ -81,9 +106,10 @@ public class ChatGrain(Kernel kernel, ILogger<ChatGrain> logger) : Grain, IChatG
         };
         logger.LogDebug("StandardMagenticManager created with max invocations: {MaxInvocations}",
             manager.MaximumInvocationCount);
-        ChatHistory history = [];
-        var orchestration = new MagenticOrchestration<string, CustomClientMessage>(
-            manager
+       
+        var orchestration = new GroupChatOrchestration<string, CustomClientMessage>(
+            new RoundRobinGroupChatManager { MaximumInvocationCount = 5 }
+
             , _agent)
         {
             ResponseCallback = (ChatMessageContent response) =>
