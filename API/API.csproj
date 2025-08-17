@@ -24,4 +24,8 @@
       <Folder Include="BlobStorage\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\ServiceDefaults\ServiceDefaults.csproj" />
+    </ItemGroup>
+
 </Project>

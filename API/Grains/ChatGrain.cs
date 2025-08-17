@@ -23,15 +23,27 @@ public interface IChatGrain : IGrainWithStringKey
     Task<CustomClientMessage> SendMessageAsync(string userId, CustomClientMessage message);
 }
 
-public class ChatGrain(Kernel kernel, ILogger<ChatGrain> logger) : Grain, IChatGrain
+public class AgentThreadState
+{
+   public ChatHistoryAgentThread Thread { get; set; } 
+}
+public class ChatGrain : Grain, IChatGrain
 {
     private ChatCompletionAgent _agent;
-    private ChatCompletionAgent writer;
-    private ChatCompletionAgent editor;
-    public  ChatHistory history = [];
+    private readonly Kernel kernel;
+    private readonly ILogger<ChatGrain> logger;
 
+    public IPersistentState<AgentThreadState> history;
+    public  ChatGrain(
+        [PersistentState("history", "default")] IPersistentState<AgentThreadState> history, Kernel _kernel, ILogger<ChatGrain> _logger)
+    {
+        this.history = history;
+        this.kernel = _kernel;
+        this.logger = _logger;
+    }
+    
     [Experimental("SKEXP0120")]
-    public override Task OnActivateAsync(CancellationToken cancellationToken)
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var agentKernel = kernel.Clone();
 
@@ -47,32 +59,28 @@ public class ChatGrain(Kernel kernel, ILogger<ChatGrain> logger) : Grain, IChatG
             Kernel = agentKernel,
             Arguments = new(new AzureOpenAIPromptExecutionSettings
             {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-            })
-        };
-         writer = new ChatCompletionAgent {
-            Name = "CopyWriter",
-            // Description = "A copy writer",
-            Instructions = "You are a copywriter with ten years of experience and are known for brevity and a dry humor. The goal is to refine and decide on the single best copy as an expert in the field. Only provide a single proposal per response. You're laser focused on the goal at hand. Don't waste time with chit chat. Consider suggestions when refining an idea.",
-            Kernel = agentKernel,
-            Arguments = new(new AzureOpenAIPromptExecutionSettings
-            {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
+                ResponseFormat = typeof(CustomClientMessage),
             })
         };
 
-        editor = new ChatCompletionAgent {
-            Name = "Reviewer",
-            // Description = "An editor.",
-            Instructions = "You are an art director who has opinions about copywriting born of a love for David Ogilvy. The goal is to determine if the given copy is acceptable to print. If so, state that it is approved. If not, provide insight on how to refine suggested copy without example.",
-            Kernel = agentKernel,
-            Arguments = new(new AzureOpenAIPromptExecutionSettings
-            {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-            })
-        };
+        // if (history.State.Thread == null)
+        // {
+        //     history.State.Thread = new ChatHistoryAgentThread();
+        // }
+        // try
+        // {
+        //     await history.stReadStateAsync();
+        //     logger.LogDebug("Successfully read state with {Count} messages", history.State.Thread.ChatHistory.Count);
+        // }
+        // catch (Exception ex)
+        // {
+        //     logger.LogError(ex, "Failed to read state");
+        // }
 
-        return Task.CompletedTask;
+        await base.OnActivateAsync(cancellationToken);
+
+       
     }
 
     [KernelFunction("get_age")]
@@ -88,66 +96,25 @@ public class ChatGrain(Kernel kernel, ILogger<ChatGrain> logger) : Grain, IChatG
     {
         // Process with the internal agent
         var chatCompletionService = _agent.Kernel.GetRequiredService<IChatCompletionService>();
-
-        var manager = new StandardMagenticManager(
-            chatCompletionService,
-            new AzureOpenAIPromptExecutionSettings()
-            {
-                ChatSystemPrompt =
-                    "You are a helpful assistant. When the available agents plugins to answer the users question",
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
-                ChatDeveloperPrompt =
-                    "You are a helpful assistant. Use the available functions to answer the user's question when applicable."
-
-
-            })
+        var PromptExecutionSettings = new OpenAIPromptExecutionSettings
         {
-            MaximumInvocationCount = 5,
+            ResponseFormat = typeof(CustomClientMessage),
+             
         };
-        logger.LogDebug("StandardMagenticManager created with max invocations: {MaxInvocations}",
-            manager.MaximumInvocationCount);
+        List< AgentResponseItem<ChatMessageContent>> res = new();
+        //var result = await  _agent.InvokeAsync(message.Text).FirstAsync();
        
-        var orchestration = new GroupChatOrchestration<string, CustomClientMessage>(
-            new RoundRobinGroupChatManager { MaximumInvocationCount = 5 }
-
-            , _agent)
+        await foreach (var msg in _agent.InvokeAsync(message.Text, history.State.Thread))
         {
-            ResponseCallback = (ChatMessageContent response) =>
-            {
-                history.Add(response);
-                logger.LogDebug("Orchestration response: {Response}", response.Content);
-                return ValueTask.CompletedTask;
-            },
-            ResultTransform = new StructuredOutputTransform<CustomClientMessage>(
-                chatCompletionService,
-                new OpenAIPromptExecutionSettings
-                {
-                    ResponseFormat = typeof(CustomClientMessage)
-                }
-            ).TransformAsync,
-
-        };
-
-        logger.LogInformation("Starting InProcessRuntime...");
-        var runTime = new InProcessRuntime();
-        await runTime.StartAsync();
-        logger.LogInformation("InProcessRuntime started.");
-
-        logger.LogInformation("Invoking orchestration...");
-        var result = await orchestration.InvokeAsync(message.Text, runTime);
-
-        logger.LogInformation("Collecting orchestration results...");
-        var resulty = await result.GetValueAsync(TimeSpan.FromSeconds(240)); // Reduced timeout for faster feedback
-        if (resulty == null)
-        {
-            // logger.LogWarning("Orchestration returned null result for chatId: {ChatId}", chatId);
-           return await Task.FromResult(new CustomClientMessage { Text = "No response generated.", Role = "assistant" });
+            res.Add(msg);
+            
         }
-        else
-        {
-            logger.LogInformation("Orchestration result: {Result}", JsonSerializer.Serialize(resulty));
-           return await Task.FromResult(resulty); // Fixed: Send resulty
 
-        }
+        var response = res.LastOrDefault().Message.Content;
+        history.State.Thread = (ChatHistoryAgentThread)res.LastOrDefault().Thread;
+        Console.WriteLine(response);
+        logger.LogInformation(JsonSerializer.Serialize(history.State.Thread.ChatHistory));
+        await history.WriteStateAsync();
+        return JsonSerializer.Deserialize<CustomClientMessage>(response);
     }
 }

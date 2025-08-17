@@ -14,9 +14,13 @@ var builder = WebApplication.CreateBuilder(args);
 var apiKey = builder.Configuration["AI-ApiKey"] ?? throw new ArgumentNullException("AI-ApiKey is not set in configuration.");
 var aiEndpoint = builder.Configuration["AI-Endpoint"] ?? throw new ArgumentNullException("AI-Endpoint is not set in configuration.");
 var aiModelName = builder.Configuration["AI-DeploymentName"] ?? throw new ArgumentNullException("AI-DeploymentName is not set in configuration.");
-
+builder.AddServiceDefaults();
 builder.Services.AddAzureOpenAIChatCompletion(aiModelName, aiEndpoint, apiKey);
-builder.Services.AddTransient<Kernel>();
+builder.Services.AddTransient<Kernel>(
+    sp =>
+    {
+       return new Kernel(sp);
+    });
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 // builder.Services.AddOpenApi();
