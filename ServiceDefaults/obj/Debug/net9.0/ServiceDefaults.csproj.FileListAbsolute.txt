@@ -1,0 +1,13 @@
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/bin/Debug/net9.0/ServiceDefaults.deps.json
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/bin/Debug/net9.0/ServiceDefaults.dll
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/bin/Debug/net9.0/ServiceDefaults.pdb
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.csproj.AssemblyReference.cache
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.GeneratedMSBuildEditorConfig.editorconfig
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.AssemblyInfoInputs.cache
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.AssemblyInfo.cs
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.csproj.CoreCompileInputs.cache
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.sourcelink.json
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.dll
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/refint/ServiceDefaults.dll
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ServiceDefaults.pdb
+/Users/swacblooms/RiderProjects/OrleansKernel/ServiceDefaults/obj/Debug/net9.0/ref/ServiceDefaults.dll
