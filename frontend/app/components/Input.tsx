@@ -49,6 +49,7 @@ console.log("message received is", messageReceived);
     useEffect(() => {
         if (inputData) {
             setInputState(inputData);
+            setLoading(true);
         }
     }, [inputData]);
     
@@ -65,8 +66,10 @@ console.log("message received is", messageReceived);
     useEffect(() => {
         console.log("inputState changed:", inputState);
         console.log("isConnectedToWebSocket:", isConnectedToWebSocket);
+        
         if (inputState &&  isConnectedToWebSocket) {
             console.log("Sending inputState to model:", inputState);
+            // setLoading(true);
             sendMessageToModel( chatId, inputState);
         }
     }, [inputState, sendMessageToModel, isConnectedToWebSocket]);

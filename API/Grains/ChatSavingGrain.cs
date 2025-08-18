@@ -6,22 +6,29 @@ namespace API.Grains;
 public interface IChatSavingGrain : IGrainWithStringKey
 {
     Task SaveChat(string userId, string chatId, CustomClientMessage message);
-    ValueTask<List<CustomClientMessage>> GetChatMessages(string userId, string chatId);
+    ValueTask<List<CustomClientMessage>> GetChatMessages(string userId);
 }
 [GenerateSerializer]
-public class ChatHistoryState{
+public class ChatHistoryState
+{
     [Id(0)]
     public List<CustomClientMessage> ChatHistory { get; set; } = new();
+}
+[GenerateSerializer]
+public class UserIdState
+{
+    [Id(0)]
+    public string? UserId { get; set; }
 }
 public class ChatSavingGrain : Grain, IChatSavingGrain
 {
 
     private readonly IPersistentState<ChatHistoryState> _chatHistory;
-    private readonly IPersistentState<string?> _userId;
+    private readonly IPersistentState<UserIdState> _userId;
     private readonly ILogger<ChatSavingGrain> _logger;
     public ChatSavingGrain(
         [PersistentState("chatHistory", "default")] IPersistentState<ChatHistoryState> chatHistory,
-        [PersistentState("userId", "default")] IPersistentState<string?> userId,
+        [PersistentState("userId", "default")] IPersistentState<UserIdState> userId,
         ILogger<ChatSavingGrain> logger)
     {
         this._chatHistory = chatHistory;
@@ -34,12 +41,12 @@ public class ChatSavingGrain : Grain, IChatSavingGrain
         _logger = logger;
     }
 
-    public async ValueTask<List<CustomClientMessage>> GetChatMessages(string userId, string chatId)
+    public async ValueTask<List<CustomClientMessage>> GetChatMessages(string userId)
     {
         // Retrieve chat messages from the persistent state
-        if(userId != _userId.State)
+        if(userId != _userId.State.UserId)
         {
-            _logger.LogWarning("User ID mismatch: expected {ExpectedUserId}, got {ActualUserId}", _userId.State, userId);
+            _logger.LogWarning("User ID mismatch: expected {ExpectedUserId}, got {ActualUserId}", _userId.State.UserId, userId);
             return new List<CustomClientMessage>();
         }
         return _chatHistory.State.ChatHistory;
@@ -48,11 +55,10 @@ public class ChatSavingGrain : Grain, IChatSavingGrain
     public async Task SaveChat(string userId,string chatId, CustomClientMessage message)
     {
         // Ensure the chat history is initialized
-        if (_chatHistory.State == null)
+        if (_userId.State.UserId == null)
         {
-            _userId.State = userId;
+            _userId.State.UserId = userId;
             await _userId.WriteStateAsync();
-            _chatHistory.State = new ChatHistoryState();
         }
 
         // Add the message to the chat history

@@ -19,8 +19,10 @@ public static class Chat
             // if user is authenticated
             if (user.Identity.IsAuthenticated)
             {
-                var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>(userId, chatId);
-                var messages = await chatSavingGrain.GetChatMessages(userId,chatId);
+                var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>( chatId);
+                var messages = await chatSavingGrain.GetChatMessages(userId);
+                Console.WriteLine("sending messages to browser ");
+                Console.WriteLine(messages);
                 return Results.Ok(messages);
             }
             return Results.Unauthorized();

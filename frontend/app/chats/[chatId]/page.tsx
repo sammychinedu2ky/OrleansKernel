@@ -17,7 +17,7 @@ export default function ChatPage({
 }) {
     const { chatId } = use(params);
     const fetcher = useFetch();
-const fetchedRef = useRef(false);
+    const fetchedRef = useRef(false);
 
 
     console.log("Chat ID from params:", chatId);
@@ -53,11 +53,14 @@ const fetchedRef = useRef(false);
         window.addEventListener("resize", updateInputBarPosition);
         return () => window.removeEventListener("resize", updateInputBarPosition);
     }, []);
-  const addMessage = (message: CustomClientMessage) => {
+    const addMessage = (message: CustomClientMessage) => {
         setMessages(prev => [...prev, message]);
     };
     useEffect(() => {
+        console.log("Chat ID in useEffect:", chatId);
+        console.log(fetchedRef.current);
         if (chatId && !fetchedRef.current) {
+            console.log("Fetching messages for chat ID:", chatId);
             fetchedRef.current = true; // Set the flag to true after the first fetch
             fetcher('/api/chat/' + chatId, {
                 method: 'GET',
@@ -66,8 +69,9 @@ const fetchedRef = useRef(false);
                 .then(data => {
                     // Handle the fetched data
                     console.log(data);
+                    console.log(chatId);
                     console.log("Setting messages state with fetched data:", data);
-                    setMessages((prev) => [ ...data,...prev]);
+                    setMessages((prev) => [...data, ...prev]);
                 });
         }
     }, [chatId]);
@@ -86,6 +90,9 @@ const fetchedRef = useRef(false);
             sessionStorage.removeItem('message');
         }
     }, [chatId]);
+    const getDownloadLink  = (fileId: string) => {
+       return `${process.env.NEXT_PUBLIC_API_URL}/api/download/${fileId}`;
+    };
     return (
         <div className="text-black">
             <div className="flex justify-between container m-auto border-2 min-h-screen">
@@ -111,10 +118,10 @@ const fetchedRef = useRef(false);
                                     <div className="mt-2">
                                         {message.files.map((file, fileIndex) => (
                                             <div key={fileIndex}>
-                                            <a href={file.fileId} className="text-blue-600 hover:underline">
-                                                {file.fileName}
-                                            </a>
-                                        </div>
+                                                <a href={getDownloadLink(file.fileName)} className="text-blue-600 hover:underline">
+                                                    {file.fileName}
+                                                </a>
+                                            </div>
                                         ))}
                                     </div>
                                 )}
@@ -128,10 +135,10 @@ const fetchedRef = useRef(false);
                     style={{ left: 0, width: "100%" }}
                 >
                     <div className="w-full max-w-2xl">
-                        <Input chatId={chatId} messageReceived={messageReceived} inputData={inputData === null ? undefined : inputData} sendMessageToModel={sendMessageToModel} 
-                        onUserMessage={addMessage}
-                        isConnectedToWebSocket={isConnectedToWebSocket}
-                        onMessageHandled={() => setMessageReceived(false)}
+                        <Input chatId={chatId} messageReceived={messageReceived} inputData={inputData === null ? undefined : inputData} sendMessageToModel={sendMessageToModel}
+                            onUserMessage={addMessage}
+                            isConnectedToWebSocket={isConnectedToWebSocket}
+                            onMessageHandled={() => setMessageReceived(false)}
                         />
                     </div>
                 </div>

@@ -3,36 +3,12 @@ using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Text.Json;
 using System.IO.Compression;
-using SixLabors.ImageSharp.PixelFormats;
 using API.Hubs;
 using API.Util;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
-using SixLabors.ImageSharp;
 using ImageMagick;
-using System.IO.Compression;
-using System.IO.Compression;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Pdf;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
-using PDFtoImage;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
-using System.IO.Compression;
-using PdfiumViewer; // Assuming PdfiumViewer for PDF processing
-using System.Drawing.Imaging;
-
-using Color = SixLabors.ImageSharp.Color;
-using Image = SixLabors.ImageSharp.Image;
-using PdfDocument = PdfSharpCore.Pdf.PdfDocument;
-using API.Endpoints;
 
 namespace API.Grains;
 
@@ -75,7 +51,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
             Name = "FileUtilAgent",
             Description = "A file utility agent",
             Instructions =
-                "You are a helpful file utility agent that performs some file conversion workflows using the available tools",
+                "You are a helpful file utility agent that performs some file conversion workflows using the available tools. No matter the question asked always return using the CustomClientMessage format. " ,
             Kernel = agentKernel,
             Arguments = new(new AzureOpenAIPromptExecutionSettings
             {
@@ -177,7 +153,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
     }
 
     [KernelFunction("convert_from_image_to_pdf")]
-    [Description("Convert an image to a PDF. Cross-platform compatible.")]
+    [Description("Convert an image to a PDF using ImageMagick. Cross-platform compatible.")]
     public async Task<FileMessage> ConvertFromImageToPdf(string fileId)
     {
         var filePath = Path.Combine(RetrieveBlobFolder.Get(), fileId);
@@ -198,36 +174,39 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         string outputFileType = "application/pdf";
         string outputFilePath = Path.Combine(RetrieveBlobFolder.Get(), outputFileName);
 
-        // Load the image using ImageSharp
-        using var image = await Image.LoadAsync<Rgba32>(filePath);
-
-        // Create a new PDF document
-        using var pdfDocument = new PdfDocument();
-        PdfPage page = pdfDocument.AddPage();
-
-        // Set page size to match image dimensions (in points, 1 point = 1/72 inch)
-        float dpi = 300f;
-        page.Width = XUnit.FromInch((double)image.Width / dpi);
-        page.Height = XUnit.FromInch((double)image.Height / dpi);
-
-        // Draw the image on the PDF page using the original file path
-        using (var xGraphics = XGraphics.FromPdfPage(page))
-        using (var xImage = XImage.FromFile(filePath))
+        try
         {
-            xGraphics.DrawImage(xImage, 0, 0, page.Width, page.Height);
+            // Load the image using Magick.NET
+            using var image = new MagickImage(filePath);
+        
+            // Set DPI for the output PDF (optional, for quality control)
+            image.Density = new Density(300, 300); // 300 DPI for good quality
+
+            // Create a MagickImageCollection to handle the conversion
+            using var collection = new MagickImageCollection();
+            collection.Add(image);
+
+            // Save the image as a PDF
+            await collection.WriteAsync(outputFilePath, MagickFormat.Pdf);
+
+            return new FileMessage
+            {
+                FileId = outputFileId,
+                FileName = outputFileName,
+                FileType = outputFileType,
+                Text = $"Converted image to PDF with dimensions {image.Width}x{image.Height} pixels"
+            };
         }
-
-        // Save the PDF
-        pdfDocument.Save(outputFilePath);
-
-        return new FileMessage
+        catch (MagickException ex)
         {
-            FileId = outputFileId,
-            FileName = outputFileName,
-            FileType = outputFileType,
-            Text = $"Converted image to PDF with dimensions {image.Width}x{image.Height} pixels"
-        };
+            logger.LogError($"Error converting image to PDF: {ex.Message}");
+            return new FileMessage
+            {
+                FileId = fileId,
+                FileName = "Error",
+                FileType = "text/plain",
+                Text = $"Failed to convert image to PDF: {ex.Message}"
+            };
+        }
     }
-
-
 }

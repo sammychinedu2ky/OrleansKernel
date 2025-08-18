@@ -11,9 +11,12 @@ public interface IUserToChatIdMappingGrain : IGrainWithStringKey
     Task<List<ChatPages>> GetChatPagesAsync();
 }
 
+[GenerateSerializer]
 public class ChatPages
 {
+    [Id(0)]
     public string? Title { get; set; }
+    [Id(1)]
     public string? ChatId { get; set; }
 }
 
@@ -42,7 +45,7 @@ public class UserToChatIdMappingGrain : Grain, IUserToChatIdMappingGrain
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var agentKernel = _kernel.Clone();
-        agentKernel.Plugins.AddFromObject(this);
+        
         _agent = new ChatCompletionAgent()
         {
             Name = "ChatSummaryAgent",
@@ -50,11 +53,7 @@ public class UserToChatIdMappingGrain : Grain, IUserToChatIdMappingGrain
             Instructions =
                 "You are a helpful chat summary agent that summarizes chat conversations. I don't need more than 10 words. So try to ensure is below it. The shorter the better.",
             Kernel = agentKernel,
-            Arguments = new(new AzureOpenAIPromptExecutionSettings
-            {
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
-                ResponseFormat = typeof(CustomClientMessage),
-            })
+            
         };
         await base.OnActivateAsync(cancellationToken);
     }

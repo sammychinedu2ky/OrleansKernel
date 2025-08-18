@@ -148,6 +148,7 @@ app.UseAuthorization();
 //     .WithName("GetHelloWorld");
 
 app.MapChatEndpoints();
+app.MapDownloadEndpoints();
 app.MapHub<ChatHub>("/api/hubs/chat")
     .RequireAuthorization();
 
