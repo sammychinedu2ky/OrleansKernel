@@ -1,52 +1,50 @@
-    using System.Security.Claims;
-    using API.Hubs;
-    using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using API.Grains;
+using API.Hubs;
+using API.Util;
+using Microsoft.AspNetCore.Mvc;
 
-    namespace API.Endpoints;
+namespace API.Endpoints;
 
-    public static class Chat
+public static class Chat
+{
+    public static void MapChatEndpoints(this WebApplication app)
     {
-        public static void MapChatEndpoints(this WebApplication app)
-        {
-            var group = app.MapGroup("/api/chat")
-                .WithTags("Chat");
+        var group = app.MapGroup("/api/chat")
+            .WithTags("Chat");
 
-            group.MapGet("/{chatId}", async () =>
+        group.MapGet("/{chatId}", async ([FromRoute] string chatId, IGrainFactory grainFactory, ClaimsPrincipal user) =>
+        {
+            var userId = RetrieveUserId.GetUserId(user);
+            // if user is authenticated
+            if (user.Identity.IsAuthenticated)
             {
-                // create a list of fake messages CustomClientMessage
-                var fakeMessages = new List<CustomClientMessage>
-                {
-                    new CustomClientMessage
-                    {
-                        Text = "Hello, how can I help you?",
-                        Role = "assistant",
-                        Files = []
-                    },
-                    new CustomClientMessage
-                    {
-                        Text = "I need help with my account.",
-                        Role = "user",
-                        Files = new List<FileMessage>
-                        {
-                            new FileMessage
-                            {
-                                FileId = Guid.NewGuid().ToString(),
-                                FileName = "screenshot.png",
-                                FileType = "image/png"
-                            }
-                        }
-                    }
-                };    
-                return Results.Ok(fakeMessages);
-            });
-            group.MapPost("/", async (
+                var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>(userId, chatId);
+                var messages = await chatSavingGrain.GetChatMessages(userId,chatId);
+                return Results.Ok(messages);
+            }
+            return Results.Unauthorized();
+        });
+
+        group.MapGet("/pages", async (IGrainFactory grainFactory, ClaimsPrincipal user) =>
+        {
+            var userId = RetrieveUserId.GetUserId(user);
+            // if user is authenticated
+            if (user.Identity.IsAuthenticated)
+            {
+            var userToChatIdMappingGrain = grainFactory.GetGrain<IUserToChatIdMappingGrain>(userId);
+            var messages = await userToChatIdMappingGrain.GetChatPagesAsync();
+            return Results.Ok(messages);
+            }
+            return Results.Unauthorized();
+        });
+
+        group.MapPost("/", async (
                 [FromForm] IFormFileCollection files,
                 [FromServices] IGrainFactory grainFactory,
                 ClaimsPrincipal claim) =>
             {
-                
-                var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-                var blobFolder = Path.Combine(projectRoot, "BlobStorage");
+                string blobFolder = RetrieveBlobFolder.Get();
                 // creates folder if it doens't exist
                 Directory.CreateDirectory(blobFolder);
 
@@ -82,5 +80,7 @@
                 //     var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
                 //     return new { UserId = userId };
             }).DisableAntiforgery();
-        }
     }
+
+
+}

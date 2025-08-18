@@ -1,78 +1,67 @@
+using API.Endpoints;
 using API.Hubs;
 
 namespace API.Grains;
 
-public interface IFileSavingGrain : IGrainWithGuidKey
+public interface IChatSavingGrain : IGrainWithStringKey
 {
-    Task<List<FileMessage>> SaveFiles(IFormFileCollection formFiles);
-    Task<FileMessage> SaveFile(string fileName, Stream fileDataStream);
+    Task SaveChat(string userId, string chatId, CustomClientMessage message);
+    ValueTask<List<CustomClientMessage>> GetChatMessages(string userId, string chatId);
 }
-
-public class FileSavingGrain : Grain, IFileSavingGrain
+[GenerateSerializer]
+public class ChatHistoryState{
+    [Id(0)]
+    public List<CustomClientMessage> ChatHistory { get; set; } = new();
+}
+public class ChatSavingGrain : Grain, IChatSavingGrain
 {
-    private readonly ILogger<FileSavingGrain> _logger;
 
-    public FileSavingGrain(ILogger<FileSavingGrain> logger)
+    private readonly IPersistentState<ChatHistoryState> _chatHistory;
+    private readonly IPersistentState<string?> _userId;
+    private readonly ILogger<ChatSavingGrain> _logger;
+    public ChatSavingGrain(
+        [PersistentState("chatHistory", "default")] IPersistentState<ChatHistoryState> chatHistory,
+        [PersistentState("userId", "default")] IPersistentState<string?> userId,
+        ILogger<ChatSavingGrain> logger)
+    {
+        this._chatHistory = chatHistory;
+        this._userId = userId;
+        _logger = logger;
+    }
+
+    public ChatSavingGrain(ILogger<ChatSavingGrain> logger)
     {
         _logger = logger;
     }
-    public async Task<FileMessage> SaveFile(string fileName, Stream fileDataStream)
+
+    public async ValueTask<List<CustomClientMessage>> GetChatMessages(string userId, string chatId)
     {
-        var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-        var blobFolder = Path.Combine(projectRoot, "BlobStorage");
-        // creates folder if it doesn't exist
-        Directory.CreateDirectory(blobFolder);
-
-        // Simulate saving the file and generating a file ID
-        var fileId = Guid.NewGuid().ToString();
-        var filePath = Path.Combine(blobFolder, fileId);
-
-        using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+        // Retrieve chat messages from the persistent state
+        if(userId != _userId.State)
         {
-            await fileDataStream.CopyToAsync(fileStream);
+            _logger.LogWarning("User ID mismatch: expected {ExpectedUserId}, got {ActualUserId}", _userId.State, userId);
+            return new List<CustomClientMessage>();
         }
-
-        return new FileMessage
-        {
-            FileId = fileId,
-            FileName = fileName,
-            FileType = Path.GetExtension(fileName)
-        };
+        return _chatHistory.State.ChatHistory;
     }
-    public async Task<List<FileMessage>> SaveFiles(IFormFileCollection formFiles)
+
+    public async Task SaveChat(string userId,string chatId, CustomClientMessage message)
     {
-        var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-        var blobFolder = Path.Combine(projectRoot, "BlobStorage");
-        // creates folder if it doens't exist
-        Directory.CreateDirectory(blobFolder);
-
-        // Simulate saving the file and generating a file ID
-        var fileMessages = new List<FileMessage>();
-        foreach (var formFile in formFiles)
+        // Ensure the chat history is initialized
+        if (_chatHistory.State == null)
         {
-            if (formFile.Length > 0)
-            {
-                var fileId = Guid.NewGuid().ToString();
-                var filePath = Path.Combine(blobFolder, fileId);
-                
-                using var stream = formFile.OpenReadStream();
-                using var fileStream = new FileStream(filePath, FileMode.Create);
-                await stream.CopyToAsync(fileStream);
-
-                var fileMessage = new FileMessage
-                {
-                    FileId = fileId,
-                    FileName = formFile.FileName,
-                    FileType = formFile.ContentType
-                };
-                
-                fileMessages.Add(fileMessage);
-            }
-            else
-            {
-                _logger.LogWarning("Received an empty file: {FileName}", formFile.FileName);
-            }
+            _userId.State = userId;
+            await _userId.WriteStateAsync();
+            _chatHistory.State = new ChatHistoryState();
         }
-        return fileMessages;
+
+        // Add the message to the chat history
+        _chatHistory.State.ChatHistory.Add(message);
+
+        // Log the message saving action
+        _logger.LogInformation("Saving message to chat {ChatId}: {Message}", chatId, message.ToString());
+
+        // Write the updated state back to persistent storage
+        await _chatHistory.WriteStateAsync();
     }
 }

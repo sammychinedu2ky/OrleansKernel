@@ -5,9 +5,9 @@ using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
 
 namespace API.Grains;
 
-public interface ISaveUserToChatIdGrain : IGrainWithGuidKey
+public interface IUserToChatIdMappingGrain : IGrainWithStringKey
 {
-    Task SaveUserToChatIdAsync(string userId, string chatId, CustomClientMessage message);
+    Task SaveUserToChatIdAsync(string chatId, CustomClientMessage message);
     Task<List<ChatPages>> GetChatPagesAsync();
 }
 
@@ -17,16 +17,23 @@ public class ChatPages
     public string? ChatId { get; set; }
 }
 
-public class SaveUserToChatIdGrain : Grain, ISaveUserToChatIdGrain
+[GenerateSerializer]
+public class ChatPagesState
 {
-    private readonly IPersistentState<Dictionary<string, ChatPages>> _chatPagesState;
-    private readonly ILogger<SaveUserToChatIdGrain> _logger;
+    [Id(0)]
+    public Dictionary<string, ChatPages> ChatPages { get; set; } = new();
+}
+
+public class UserToChatIdMappingGrain : Grain, IUserToChatIdMappingGrain
+{
+    private readonly IPersistentState<ChatPagesState> _chatPagesState;
+    private readonly ILogger<UserToChatIdMappingGrain> _logger;
     private readonly Kernel _kernel;
     private ChatCompletionAgent? _agent;
 
-    public SaveUserToChatIdGrain(
-        [PersistentState("chatPages", "default")] IPersistentState<Dictionary<string, ChatPages>> chatPagesState,
-        ILogger<SaveUserToChatIdGrain> logger, Kernel kernel)
+    public UserToChatIdMappingGrain(
+        [PersistentState("chatPages", "default")] IPersistentState<ChatPagesState> chatPagesState,
+        ILogger<UserToChatIdMappingGrain> logger, Kernel kernel)
     {
         _chatPagesState = chatPagesState;
         _logger = logger;
@@ -51,12 +58,12 @@ public class SaveUserToChatIdGrain : Grain, ISaveUserToChatIdGrain
         };
         await base.OnActivateAsync(cancellationToken);
     }
-    public async Task SaveUserToChatIdAsync(string userId, string chatId, CustomClientMessage message)
+    public async Task SaveUserToChatIdAsync(string chatId, CustomClientMessage message)
     {
-        if (!_chatPagesState.State.ContainsKey(chatId))
+        if (!_chatPagesState.State.ChatPages.ContainsKey(chatId))
         {
             var summary = await SummarizeChatAsync(message);
-            _chatPagesState.State[chatId] = new ChatPages
+            _chatPagesState.State.ChatPages[chatId] = new ChatPages
             {
                 Title = summary,
                 ChatId = chatId
@@ -77,6 +84,6 @@ public class SaveUserToChatIdGrain : Grain, ISaveUserToChatIdGrain
 
     public Task<List<ChatPages>> GetChatPagesAsync()
     {
-        return Task.FromResult(_chatPagesState.State.Values.ToList());
+        return Task.FromResult(_chatPagesState.State.ChatPages.Values.ToList());
     }
 }
