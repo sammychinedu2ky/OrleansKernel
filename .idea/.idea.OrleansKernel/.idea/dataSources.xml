@@ -8,12 +8,5 @@
       <jdbc-url>jdbc:redis://NG89tBngaJ8Wz8JyTQ5JWt@localhost:61488</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
-    <data-source source="LOCAL" name="redis" uuid="4b9e1487-cd17-4474-b7b9-097ed879cf79">
-      <driver-ref>redis</driver-ref>
-      <synchronize>true</synchronize>
-      <jdbc-driver>jdbc.RedisDriver</jdbc-driver>
-      <jdbc-url>jdbc:redis://NG89tBngaJ8Wz8JyTQ5JWt@localhost:50005</jdbc-url>
-      <working-dir>$ProjectFileDir$</working-dir>
-    </data-source>
   </component>
 </project>

@@ -63,25 +63,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         // makes IssuerSigningKeyResolver not required
          options.Authority = "https://genuine-kite-18.clerk.accounts.dev";
          options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                // First, check if there's an access_token in query string
-                var accessToken = context.Request.Query["access_token"];
+         {
+             OnMessageReceived = context =>
+             {
+                 // First, check if there's an access_token in query string
+                 var accessToken = context.Request.Query["access_token"];
+                 Console.WriteLine("Access Token: " + accessToken);
+                 // If the request is for our SignalR hub...
+                 var path = context.HttpContext.Request.Path;
+                 if (!string.IsNullOrEmpty(accessToken) &&
+                     path.StartsWithSegments("/api/hubs/chat"))
+                 {
+                     context.Token = accessToken;
+                 }
 
-                // If the request is for our SignalR hub...
-                var path = context.HttpContext.Request.Path;
-                if (!string.IsNullOrEmpty(accessToken) &&
-                    path.StartsWithSegments("/api/hubs/chat"))
-                {
-                    context.Token = accessToken;
-                }
-
-                return Task.CompletedTask;
-            }
+                 return Task.CompletedTask;
+             }
+            
         };
     });
-builder.Services.AddSignalR();
+    var connectionString = builder.Configuration.GetConnectionString("redis") ?? throw new ArgumentNullException("Redis connection string is not set in configuration.");
+builder.Services.AddSignalR().AddStackExchangeRedis(connectionString, options =>
+{
+    options.Configuration.ChannelPrefix = "MyApp";
+});
 builder.Services.AddAuthorization();
 // add cors support for local host 3000
 builder.Services.AddCors(options =>
@@ -149,7 +154,6 @@ app.UseAuthorization();
 
 app.MapChatEndpoints();
 app.MapDownloadEndpoints();
-app.MapHub<ChatHub>("/api/hubs/chat")
-    .RequireAuthorization();
+app.MapHub<ChatHub>("/api/hubs/chat");
 
 app.Run();

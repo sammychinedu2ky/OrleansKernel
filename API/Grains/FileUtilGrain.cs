@@ -117,6 +117,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         {
             // Single page: save as PNG
             outputFileName = $"{outputFileId}.png";
+            outputFileId = outputFileName;
             outputFileType = "image/png";
             outputFilePath = Path.Combine(RetrieveBlobFolder.Get(), outputFileName);
 
@@ -127,6 +128,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         {
             // Multi-page: save each as PNG in a ZIP
             outputFileName = $"{outputFileId}.zip";
+            outputFileId = outputFileName;
             outputFileType = "application/zip";
             outputFilePath = Path.Combine(RetrieveBlobFolder.Get(), outputFileName);
 
@@ -145,7 +147,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
 
         return new FileMessage
         {
-            FileId = outputFileId,
+            FileId = $"{outputFileId}",
             FileName = outputFileName,
             FileType = outputFileType,
             Text = $"Converted PDF with {pageCount} page(s) to {(pageCount == 1 ? "image" : "ZIP archive")}"
@@ -171,6 +173,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         // Generate output file details
         string outputFileId = Guid.NewGuid().ToString();
         string outputFileName = $"{outputFileId}.pdf";
+        outputFileId = outputFileName;
         string outputFileType = "application/pdf";
         string outputFilePath = Path.Combine(RetrieveBlobFolder.Get(), outputFileName);
 

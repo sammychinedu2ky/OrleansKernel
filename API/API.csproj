@@ -12,6 +12,7 @@
         <PackageReference Include="Magick.NET.Core" Version="14.8.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.8" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.8" />
         <PackageReference Include="Microsoft.Orleans.Clustering.Redis" Version="9.2.1" />
         <PackageReference Include="Microsoft.Orleans.Persistence.Redis" Version="9.2.1" />
         <PackageReference Include="Microsoft.Orleans.Server" Version="9.2.1" />

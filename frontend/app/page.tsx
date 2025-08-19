@@ -101,6 +101,7 @@ export default function Home() {
                 >
                     <div className="w-full max-w-2xl">
                         <Input chatId={chatId} messageReceived={messageReceived} sendMessageToModel={sendMessageToModel} isConnectedToWebSocket={isConnectedToWebSocket}
+                        onUserMessage={addMessage}
                          onMessageHandled={() => setMessageReceived(false)} />
                     </div>
                 </div>

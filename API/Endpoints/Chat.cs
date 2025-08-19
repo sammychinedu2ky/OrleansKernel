@@ -41,6 +41,19 @@ public static class Chat
             return Results.Unauthorized();
         });
 
+        group.MapGet("/chatpages", async (IGrainFactory grainFactory, ClaimsPrincipal user) =>
+        {
+            var userId = RetrieveUserId.GetUserId(user);
+            // if user is authenticated
+            if (user.Identity.IsAuthenticated)
+            {
+                var userToChatIdMappingGrain = grainFactory.GetGrain<IUserToChatIdMappingGrain>(userId);
+                var messages = await userToChatIdMappingGrain.GetChatPagesAsync();
+                return Results.Ok(messages);
+            }
+            return Results.Unauthorized();
+        });
+
         group.MapPost("/", async (
                 [FromForm] IFormFileCollection files,
                 [FromServices] IGrainFactory grainFactory,
@@ -58,14 +71,14 @@ public static class Chat
                     {
                         var fileId = Guid.NewGuid().ToString();
                         var fileExtension = Path.GetExtension(formFile.FileName);
-                        var filePath = Path.Combine(blobFolder, fileId);
+                        var filePath = Path.Combine(blobFolder, fileId+ fileExtension);
                         using var stream = formFile.OpenReadStream();
                         using var fileStream = new FileStream(filePath, FileMode.Create);
                         await stream.CopyToAsync(fileStream);
 
                         var fileMessage = new FileMessage
                         {
-                            FileId = fileId,
+                            FileId = fileId+fileExtension,
                             FileName = formFile.FileName,
                             FileType = formFile.ContentType
                         };

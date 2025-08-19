@@ -118,7 +118,7 @@ export default function ChatPage({
                                     <div className="mt-2">
                                         {message.files.map((file, fileIndex) => (
                                             <div key={fileIndex}>
-                                                <a href={getDownloadLink(file.fileName)} className="text-blue-600 hover:underline">
+                                                <a href={getDownloadLink(file.fileId)} className="text-blue-600 hover:underline">
                                                     {file.fileName}
                                                 </a>
                                             </div>

@@ -40,11 +40,11 @@ export function useChatHub(
   }, [getToken]);
 
   useEffect(() => {
-    if (!token) return;
+    
 
     const connection = new HubConnectionBuilder()
       .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/api/hubs/chat`, {
-        accessTokenFactory: () => token,
+        accessTokenFactory: () => token!,
         skipNegotiation: true,
         transport: HttpTransportType.WebSockets,
         withCredentials: false,
