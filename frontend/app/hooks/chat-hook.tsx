@@ -40,8 +40,6 @@ export function useChatHub(
   }, [getToken]);
 
   useEffect(() => {
-    
-
     const connection = new HubConnectionBuilder()
       .withUrl(`${process.env.NEXT_PUBLIC_API_URL}/api/hubs/chat`, {
         accessTokenFactory: () => token!,

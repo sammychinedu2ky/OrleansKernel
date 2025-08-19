@@ -46,7 +46,7 @@ export default function RootLayout({
                   UtilGPT
                 </a>
                 {/* Page selector client component */}
-                <PageSelector />
+               
               </div>
 
               <div className='flex items-center gap-4'>
