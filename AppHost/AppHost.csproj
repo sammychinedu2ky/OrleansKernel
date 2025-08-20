@@ -12,14 +12,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Aspire.Hosting.AppHost" Version="9.4.0" />
-        <PackageReference Include="Aspire.Hosting.NodeJs" Version="9.4.0" />
-        <PackageReference Include="Aspire.Hosting.Orleans" Version="9.4.0" />
-        <PackageReference Include="Aspire.Hosting.Redis" Version="9.4.0" />
+        <PackageReference Include="Aspire.Hosting.AppHost" Version="9.4.0"/>
+        <PackageReference Include="Aspire.Hosting.NodeJs" Version="9.4.0"/>
+        <PackageReference Include="Aspire.Hosting.Orleans" Version="9.4.0"/>
+        <PackageReference Include="Aspire.Hosting.Redis" Version="9.4.0"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\API\API.csproj" />
+        <ProjectReference Include="..\API\API.csproj"/>
     </ItemGroup>
 
 </Project>

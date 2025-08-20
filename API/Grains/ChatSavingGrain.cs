@@ -1,4 +1,3 @@
-using API.Endpoints;
 using API.Hubs;
 
 namespace API.Grains;
@@ -8,31 +7,33 @@ public interface IChatSavingGrain : IGrainWithStringKey
     Task SaveChat(string userId, string chatId, CustomClientMessage message);
     ValueTask<List<CustomClientMessage>> GetChatMessages(string userId);
 }
+
 [GenerateSerializer]
 public class ChatHistoryState
 {
-    [Id(0)]
-    public List<CustomClientMessage> ChatHistory { get; set; } = new();
+    [Id(0)] public List<CustomClientMessage> ChatHistory { get; set; } = new();
 }
+
 [GenerateSerializer]
 public class UserIdState
 {
-    [Id(0)]
-    public string? UserId { get; set; }
+    [Id(0)] public string? UserId { get; set; }
 }
+
 public class ChatSavingGrain : Grain, IChatSavingGrain
 {
-
     private readonly IPersistentState<ChatHistoryState> _chatHistory;
-    private readonly IPersistentState<UserIdState> _userId;
     private readonly ILogger<ChatSavingGrain> _logger;
+    private readonly IPersistentState<UserIdState> _userId;
+
     public ChatSavingGrain(
-        [PersistentState("chatHistory", "default")] IPersistentState<ChatHistoryState> chatHistory,
+        [PersistentState("chatHistory", "default")]
+        IPersistentState<ChatHistoryState> chatHistory,
         [PersistentState("userId", "default")] IPersistentState<UserIdState> userId,
         ILogger<ChatSavingGrain> logger)
     {
-        this._chatHistory = chatHistory;
-        this._userId = userId;
+        _chatHistory = chatHistory;
+        _userId = userId;
         _logger = logger;
     }
 
@@ -44,15 +45,17 @@ public class ChatSavingGrain : Grain, IChatSavingGrain
     public async ValueTask<List<CustomClientMessage>> GetChatMessages(string userId)
     {
         // Retrieve chat messages from the persistent state
-        if(userId != _userId.State.UserId)
+        if (userId != _userId.State.UserId)
         {
-            _logger.LogWarning("User ID mismatch: expected {ExpectedUserId}, got {ActualUserId}", _userId.State.UserId, userId);
+            _logger.LogWarning("User ID mismatch: expected {ExpectedUserId}, got {ActualUserId}", _userId.State.UserId,
+                userId);
             return new List<CustomClientMessage>();
         }
+
         return _chatHistory.State.ChatHistory;
     }
 
-    public async Task SaveChat(string userId,string chatId, CustomClientMessage message)
+    public async Task SaveChat(string userId, string chatId, CustomClientMessage message)
     {
         // Ensure the chat history is initialized
         if (_userId.State.UserId == null)

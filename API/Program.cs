@@ -1,32 +1,27 @@
-using System.Security.Claims;
-using System.Text.Json;
 using API.Endpoints;
-using API.Grains;
 using API.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.SemanticKernel;
-
-using Microsoft.SemanticKernel.Agents.Orchestration.GroupChat;
 using Orleans.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
-var apiKey = builder.Configuration["AI-ApiKey"] ?? throw new ArgumentNullException("AI-ApiKey is not set in configuration.");
-var aiEndpoint = builder.Configuration["AI-Endpoint"] ?? throw new ArgumentNullException("AI-Endpoint is not set in configuration.");
-var aiModelName = builder.Configuration["AI-DeploymentName"] ?? throw new ArgumentNullException("AI-DeploymentName is not set in configuration.");
+var apiKey = builder.Configuration["AI-ApiKey"] ??
+             throw new ArgumentNullException("AI-ApiKey is not set in configuration.");
+var aiEndpoint = builder.Configuration["AI-Endpoint"] ??
+                 throw new ArgumentNullException("AI-Endpoint is not set in configuration.");
+var aiModelName = builder.Configuration["AI-DeploymentName"] ??
+                  throw new ArgumentNullException("AI-DeploymentName is not set in configuration.");
 builder.AddServiceDefaults();
 builder.Services.AddAzureOpenAIChatCompletion(aiModelName, aiEndpoint, apiKey);
 builder.Services.AddTransient<Kernel>(
-    sp =>
-    {
-       return new Kernel(sp);
-    });
+    sp => { return new Kernel(sp); });
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 // builder.Services.AddOpenApi();
 builder.AddKeyedRedisClient("redis");
 // builder.UseOrleans();
-builder.UseOrleans((siloBuilder) =>
+builder.UseOrleans(siloBuilder =>
 {
     siloBuilder.Configure<GrainCollectionOptions>(options =>
     {
@@ -42,10 +37,10 @@ builder.UseOrleans((siloBuilder) =>
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
-            
+
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidateAudience = false,
@@ -61,32 +56,28 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             // },
         };
         // makes IssuerSigningKeyResolver not required
-         options.Authority = "https://genuine-kite-18.clerk.accounts.dev";
-         options.Events = new JwtBearerEvents
-         {
-             OnMessageReceived = context =>
-             {
-                 // First, check if there's an access_token in query string
-                 var accessToken = context.Request.Query["access_token"];
-                 Console.WriteLine("Access Token: " + accessToken);
-                 // If the request is for our SignalR hub...
-                 var path = context.HttpContext.Request.Path;
-                 if (!string.IsNullOrEmpty(accessToken) &&
-                     path.StartsWithSegments("/api/hubs/chat"))
-                 {
-                     context.Token = accessToken;
-                 }
+        options.Authority = "https://genuine-kite-18.clerk.accounts.dev";
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // First, check if there's an access_token in query string
+                var accessToken = context.Request.Query["access_token"];
+                Console.WriteLine("Access Token: " + accessToken);
+                // If the request is for our SignalR hub...
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/api/hubs/chat"))
+                    context.Token = accessToken;
 
-                 return Task.CompletedTask;
-             }
-            
+                return Task.CompletedTask;
+            }
         };
     });
-    var connectionString = builder.Configuration.GetConnectionString("redis") ?? throw new ArgumentNullException("Redis connection string is not set in configuration.");
-builder.Services.AddSignalR().AddStackExchangeRedis(connectionString, options =>
-{
-    options.Configuration.ChannelPrefix = "MyApp";
-});
+var connectionString = builder.Configuration.GetConnectionString("redis") ??
+                       throw new ArgumentNullException("Redis connection string is not set in configuration.");
+builder.Services.AddSignalR()
+    .AddStackExchangeRedis(connectionString, options => { options.Configuration.ChannelPrefix = "MyApp"; });
 builder.Services.AddAuthorization();
 // add cors support for local host 3000
 builder.Services.AddCors(options =>
@@ -100,10 +91,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseCors("AllowFrontend");
 
 

@@ -6,7 +6,7 @@ public static class RetrieveUserId
 {
     public static string? GetUserId(ClaimsPrincipal claim)
     {
-        var userId =   claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
+        var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
         return userId;
     }
 }

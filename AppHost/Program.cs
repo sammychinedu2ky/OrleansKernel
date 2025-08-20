@@ -1,7 +1,8 @@
+using Projects;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("redis");
-
 
 
 var orleans = builder.AddOrleans("orleans")
@@ -12,11 +13,11 @@ var orleans = builder.AddOrleans("orleans")
 var aiKey = builder.AddParameter("AI-ApiKey");
 var aiEndpoint = builder.AddParameter("AI-Endpoint");
 var aiModelName = builder.AddParameter("AI-DeploymentName");
-var apiService = builder.AddProject<Projects.API>("apiservice")
-     .WithHttpEndpoint(5000, name: "api")
-     .WithEnvironment("AI-ApiKey", aiKey)
-        .WithEnvironment("AI-Endpoint", aiEndpoint)
-        .WithEnvironment("AI-DeploymentName", aiModelName)
+var apiService = builder.AddProject<API>("apiservice")
+    .WithHttpEndpoint(5000, name: "api")
+    .WithEnvironment("AI-ApiKey", aiKey)
+    .WithEnvironment("AI-Endpoint", aiEndpoint)
+    .WithEnvironment("AI-DeploymentName", aiModelName)
     .WithReference(cache)
     .WithReference(orleans);
 
