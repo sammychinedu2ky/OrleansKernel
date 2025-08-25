@@ -47,6 +47,7 @@ public static class Extensions
         {
             logging.IncludeFormattedMessage = true;
             logging.IncludeScopes = true;
+            // Console exporter is not available for OpenTelemetry logging.
         });
 
         builder.Services.AddOpenTelemetry()

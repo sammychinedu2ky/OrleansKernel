@@ -45,21 +45,6 @@ export default function Home() {
         return () => window.removeEventListener("resize", updateInputBarPosition);
     }, []);
 
-
-    // useEffect( () => {
-    //     if (chatId) {
-    //         fetcher('/api/chat/' + chatId, {
-    //       method: 'GET',
-    //         })
-    //         .then(response => response.json())
-    //         .then(data => {
-    //       // Handle the fetched data
-    //       console.log(data);
-    //       setMessages(data || []);
-    //         });
-    //     }
-    // }, [chatId, fetcher]);
-
     return (
         <div className="text-black">
             <div className="flex justify-between container m-auto border-2 min-h-screen">

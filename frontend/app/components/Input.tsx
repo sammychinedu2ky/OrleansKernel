@@ -15,22 +15,21 @@ interface InputProps {
     inputData?: CustomClientMessage;
     chatId: string;
     sendMessageToModel: (chatId: string, message: CustomClientMessage) => void;
-    onUserMessage?: (message: CustomClientMessage) => void; 
+    onUserMessage?: (message: CustomClientMessage) => void;
     onMessageHandled: () => void;
     isConnectedToWebSocket?: boolean;
 }
 
-export default function Input({ messageReceived, inputData, chatId,sendMessageToModel,isConnectedToWebSocket,
+export default function Input({ messageReceived, inputData, chatId, sendMessageToModel, isConnectedToWebSocket,
     onUserMessage, onMessageHandled
- }: InputProps) {
-console.log("message received is", messageReceived);
+}: InputProps) {
     const [files, setFiles] = useState<File[]>([]);
     const [text, setText] = useState("");
     // bind a state to inputData if provided
     const [inputState, setInputState] = useState<CustomClientMessage | null>(null);
 
     const fetcher = useFetch();
-   
+
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -38,11 +37,8 @@ console.log("message received is", messageReceived);
     const { isSignedIn } = useAuth();
     // Stop loading if messageReceived changes to true
     useEffect(() => {
-        console.log("loading changed: before condition", loading);
-        console.log("messageReceived changed:", messageReceived);
         if (messageReceived) {
             setLoading(false);
-            console.log("loading changed: after condition", loading);
             onMessageHandled();
         }
     }, [messageReceived]);
@@ -52,7 +48,7 @@ console.log("message received is", messageReceived);
             setLoading(true);
         }
     }, [inputData]);
-    
+
     const removeFile = (index: number) => {
         setFiles((prev) => prev.filter((_, i) => i !== index));
     };
@@ -64,32 +60,25 @@ console.log("message received is", messageReceived);
     };
 
     useEffect(() => {
-        console.log("inputState changed:", inputState);
-        console.log("isConnectedToWebSocket:", isConnectedToWebSocket);
-        
-        if (inputState &&  isConnectedToWebSocket) {
-            console.log("Sending inputState to model:", inputState);
-            // setLoading(true);
-            sendMessageToModel( chatId, inputState);
+
+        if (inputState && isConnectedToWebSocket) {
+            sendMessageToModel(chatId, inputState);
         }
     }, [inputState, sendMessageToModel, isConnectedToWebSocket]);
 
     const handleSend = async () => {
         setLoading(true);
-        console.log(files, text);
         const formData = new FormData();
         formData.append('chatId', chatId);
         files.forEach((file) => {
             formData.append('files', file);
         });
-        console.log("done appending files to formData");
         try {
             let response = await fetcher('/api/chat', {
                 method: 'POST',
                 body: formData,
             });
             // CONSOLE STATUS
-            console.log("Response status:", response.status);
             let data = await response.json();
             // got a sample request of this format
             let CustomClientMessage: CustomClientMessage = {
@@ -100,7 +89,6 @@ console.log("message received is", messageReceived);
             if (onUserMessage) {
                 onUserMessage(CustomClientMessage);
             }
-            console.log(data);
             setText("");
             setFiles([]);
             if (isSignedIn && !pathName.includes(`/chats/${chatId}`)) {
@@ -109,7 +97,7 @@ console.log("message received is", messageReceived);
                 sessionStorage.setItem('message', JSON.stringify(CustomClientMessage));
                 router.push(`/chats/${chatId}`);
             }
-            else{
+            else {
                 setInputState(CustomClientMessage);
             }
         } catch (error) {
@@ -129,6 +117,12 @@ console.log("message received is", messageReceived);
                 placeholder="Ask anything"
                 className="flex-1 outline-none bg-transparent text-gray-800"
                 disabled={loading}
+                onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSend();
+                    }
+                }}
             />
 
             {/* File previews */}

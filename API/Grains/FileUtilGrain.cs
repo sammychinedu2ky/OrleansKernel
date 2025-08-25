@@ -33,22 +33,16 @@ public class ThreadState
     [Id(0)] public ChatHistoryAgentThread Thread { get; set; }
 }
 
-public class FileUtilGrain : Grain, IFileUtilGrain
+public class FileUtilGrain(
+    [PersistentState("history", "default")]
+        IPersistentState<ThreadState> history, Kernel _kernel, ILogger<FileUtilGrain> _logger) : Grain, IFileUtilGrain
+
 {
-    private readonly Kernel kernel;
-    private readonly ILogger<FileUtilGrain> logger;
+    private readonly Kernel kernel = _kernel;
+    private readonly ILogger<FileUtilGrain> logger = _logger;
     private ChatCompletionAgent _agent;
 
-    public IPersistentState<ThreadState> threadState;
-
-    public FileUtilGrain(
-        [PersistentState("history", "default")]
-        IPersistentState<ThreadState> history, Kernel _kernel, ILogger<FileUtilGrain> _logger)
-    {
-        threadState = history;
-        kernel = _kernel;
-        logger = _logger;
-    }
+    public IPersistentState<ThreadState> threadState = history;
 
     public async Task<CustomClientMessage> SendMessageAsync(CustomClientMessage message)
     {
@@ -56,12 +50,8 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         await foreach (var msg in _agent.InvokeAsync(message.ToString(), threadState.State.Thread)) res.Add(msg);
         var response = res.LastOrDefault().Message.Content;
         threadState.State.Thread = (ChatHistoryAgentThread)res.LastOrDefault().Thread;
-        
-        Console.WriteLine("swacky");
-        Console.WriteLine(response);
-        // logger.LogWarning(JsonSerializer.Serialize(res[0].Thread));
-       logger.LogWarning(JsonSerializer.Serialize(threadState.State.Thread.ChatHistory));
         await threadState.WriteStateAsync();
+        logger.LogInformation(JsonSerializer.Serialize(threadState.State.Thread.ChatHistory));
         return JsonSerializer.Deserialize<CustomClientMessage>(response);
     }
 
@@ -269,15 +259,140 @@ public class FileUtilGrain : Grain, IFileUtilGrain
             };
         }
     }
+    [KernelFunction("convert_docx_to_pdf")]
+    [Description("Fake: Convert a DOCX file to PDF (dummy implementation)")]
+    public Task<FileMessage> ConvertDocxToPdf(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "dummy.pdf",
+            FileType = "application/pdf",
+            Text = $"[FAKE] Converted DOCX file {fileId} to PDF."
+        });
+    }
 
+    [KernelFunction("extract_text_from_pdf")]
+    [Description("Fake: Extract text from a PDF file (dummy implementation)")]
+    public Task<FileMessage> ExtractTextFromPdf(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "dummy.txt",
+            FileType = "text/plain",
+            Text = $"[FAKE] Extracted text from PDF file {fileId}."
+        });
+    }
+
+    [KernelFunction("summarize_file_content")]
+    [Description("Fake: Summarize the content of a file (dummy implementation)")]
+    public Task<FileMessage> SummarizeFileContent(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "summary.txt",
+            FileType = "text/plain",
+            Text = $"[FAKE] Summary for file {fileId}: This is a dummy summary."
+        });
+    }
+
+    [KernelFunction("convert_txt_to_csv")]
+    [Description("Fake: Convert a TXT file to CSV (dummy implementation)")]
+    public Task<FileMessage> ConvertTxtToCsv(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "dummy.csv",
+            FileType = "text/csv",
+            Text = $"[FAKE] Converted TXT file {fileId} to CSV."
+        });
+    }
+
+    [KernelFunction("detect_file_language")]
+    [Description("Fake: Detect the language of a file's content (dummy implementation)")]
+    public Task<FileMessage> DetectFileLanguage(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "language.txt",
+            FileType = "text/plain",
+            Text = $"[FAKE] Detected language for file {fileId}: English (dummy)."
+        });
+    }
+    [KernelFunction("split_pdf")]
+    [Description("Fake: Split a PDF into individual pages (dummy implementation)")]
+    public Task<FileMessage> SplitPdf(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "split_pages.zip",
+            FileType = "application/zip",
+            Text = $"[FAKE] Split PDF {fileId} into individual pages."
+        });
+    }
+
+    [KernelFunction("compress_image")]
+    [Description("Fake: Compress an image file (dummy implementation)")]
+    public Task<FileMessage> CompressImage(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "compressed.jpg",
+            FileType = "image/jpeg",
+            Text = $"[FAKE] Compressed image {fileId}."
+        });
+    }
+
+    [KernelFunction("resize_image")]
+    [Description("Fake: Resize an image file (dummy implementation)")]
+    public Task<FileMessage> ResizeImage(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "resized.png",
+            FileType = "image/png",
+            Text = $"[FAKE] Resized image {fileId} to 512x512."
+        });
+    }
+
+    [KernelFunction("convert_csv_to_xlsx")]
+    [Description("Fake: Convert a CSV file to XLSX (dummy implementation)")]
+    public Task<FileMessage> ConvertCsvToXlsx(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "dummy.xlsx",
+            FileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            Text = $"[FAKE] Converted CSV {fileId} to XLSX."
+        });
+    }
+
+    [KernelFunction("extract_metadata")]
+    [Description("Fake: Extract metadata from a file (dummy implementation)")]
+    public Task<FileMessage> ExtractMetadata(string fileId)
+    {
+        return Task.FromResult(new FileMessage
+        {
+            FileId = fileId,
+            FileName = "metadata.json",
+            FileType = "application/json",
+            Text = $"[FAKE] Extracted metadata from file {fileId}."
+        });
+    }
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var agentKernel = kernel.Clone();
-        // get configuration
-        var config = agentKernel.Services.GetRequiredService<IConfiguration>();
-        // var embeddingModel = config["Embedding-Model"] ?? throw new ArgumentNullException("Embedding-Model is not set in configuration.");
         var embeddingGenerator = agentKernel.Services.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
-        // agentKernel.Plugins.AddFromObject(this);
+        var httpLogger = agentKernel.Services.GetRequiredService<ILogger<HttpLoggingHandler>>();
+        agentKernel.Plugins.AddFromObject(this);
         _agent = new ChatCompletionAgent
         {
             Name = "FileUtilAgent",
@@ -296,8 +411,13 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
         vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
         vectorDimensions: 1536,
-        functions: AvailableFunctions(),
-        maxNumberOfFunctions: 1
+        maxNumberOfFunctions: 5,
+        functions: AvailableFunctions()
+        // options: new ContextualFunctionProviderOptions
+        // {
+        //     NumberOfRecentMessagesInContext = 2
+           
+        // }
        ));
         await base.OnActivateAsync(cancellationToken);
     }
@@ -309,23 +429,23 @@ public class FileUtilGrain : Grain, IFileUtilGrain
             .Where(m => m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).Any())
             .Select(m =>
             {
-            var attr = (KernelFunctionAttribute)m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).FirstOrDefault();
-            var descAttr = (DescriptionAttribute)m.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
-            var name = attr?.Name ?? m.Name;
-            var description = descAttr?.Description ?? "";
-            // Create delegate for the method
-            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(description))
-                throw new InvalidOperationException($"KernelFunction '{m.Name}' must have both a name and a description.");
+                var attr = (KernelFunctionAttribute)m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).FirstOrDefault();
+                var descAttr = (DescriptionAttribute)m.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
+                var name = attr?.Name ?? m.Name;
+                var description = descAttr?.Description ?? "";
+                // Create delegate for the method
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(description))
+                    throw new InvalidOperationException($"KernelFunction '{m.Name}' must have both a name and a description.");
 
-            // Handle methods with any number of parameters (including zero)
-            var parameterTypes = m.GetParameters().Select(p => p.ParameterType).ToList();
-            parameterTypes.Add(m.ReturnType); // Add return type at the end
+                // Handle methods with any number of parameters (including zero)
+                var parameterTypes = m.GetParameters().Select(p => p.ParameterType).ToList();
+                parameterTypes.Add(m.ReturnType); // Add return type at the end
 
-            var delegateType = Expression.GetDelegateType(parameterTypes.ToArray());
+                var delegateType = Expression.GetDelegateType(parameterTypes.ToArray());
 
-            var del = Delegate.CreateDelegate(delegateType, this, m, false);
+                var del = Delegate.CreateDelegate(delegateType, this, m, false);
 
-            return AIFunctionFactory.Create(del, name, description);
+                return AIFunctionFactory.Create(del, name, description);
             })
             .ToList();
 
@@ -334,5 +454,3 @@ public class FileUtilGrain : Grain, IFileUtilGrain
 
 
 }
-#pragma warning restore SKEXP0130 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-#pragma warning restore SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.

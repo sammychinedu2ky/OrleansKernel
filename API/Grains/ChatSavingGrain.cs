@@ -77,8 +77,9 @@ public class ChatSavingGrain : Grain, IChatSavingGrain
     // set an onactivate method that sets the userId
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
-        var userId = this.GetPrimaryKeyString();
-        if (_userId.State.UserId != userId)
+        var key = this.GetPrimaryKeyString();
+        var userId = key.Split(':')[0];
+        if (_userId.State.UserId != key)
         {
             _userId.State.UserId = userId;
             await _userId.WriteStateAsync();

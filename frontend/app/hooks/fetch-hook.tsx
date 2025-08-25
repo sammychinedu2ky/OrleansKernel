@@ -16,7 +16,6 @@ export default function useFetch() {
                     Authorization: `Bearer ${token}`,
                 },
             };
-            console.log("my token is", token);
             return fetch(url, authInit);
         },
         [getToken]

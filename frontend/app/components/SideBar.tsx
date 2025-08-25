@@ -19,7 +19,6 @@ export default function SideBar() {
             fetcher('/api/chat/chatpages')
             .then((data) =>  data.json())
             .then((data) => {
-                console.log(data);
                 setChatPages(data);
             });
         }

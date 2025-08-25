@@ -60,7 +60,7 @@ public class ChatHub(
     {
         var claimPrincipal = Context.User!;
         var userId = RetrieveUserId.GetUserId(claimPrincipal);
-        var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>(chatId);
+        var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>(userId + ":" + chatId);
         if (IsAuthenticated(Context.User))
         {
             var userToChatIdMappingGrain = grainFactory.GetGrain<IUserToChatIdMappingGrain>(userId);

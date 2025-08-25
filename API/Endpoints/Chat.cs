@@ -19,10 +19,8 @@ public static class Chat
             // if user is authenticated
             if (user.Identity.IsAuthenticated)
             {
-                var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>(chatId);
+                var chatSavingGrain = grainFactory.GetGrain<IChatSavingGrain>(userId + ":" + chatId);
                 var messages = await chatSavingGrain.GetChatMessages(userId);
-                Console.WriteLine("sending messages to browser ");
-                Console.WriteLine(messages);
                 return Results.Ok(messages);
             }
 
@@ -90,10 +88,6 @@ public static class Chat
 
             return Results.Ok(fileMessages);
 
-            //    // Console.WriteLine(context.User.Identity.Name);
-            //     Console.WriteLine(AppContext.BaseDirectory);
-            //     var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
-            //     return new { UserId = userId };
         }).DisableAntiforgery();
     }
 }

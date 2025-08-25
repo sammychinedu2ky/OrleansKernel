@@ -1,11 +1,14 @@
 using API.Endpoints;
 using API.Hubs;
+using API.Util;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
 using Orleans.Configuration;
+#pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 var builder = WebApplication.CreateBuilder(args);
 var apiKey = builder.Configuration["AI-ApiKey"] ??
@@ -17,19 +20,21 @@ var aiModelName = builder.Configuration["AI-DeploymentName"] ??
 var aiEmbeddingModel = builder.Configuration["Embedding-Model"] ??
                        throw new ArgumentNullException("Embedding-Model is not set in configuration.");
 builder.AddServiceDefaults();
+
+builder.Services.AddTransient<HttpMessageHandlerBuilder>(sp => 
+    new CustomHttpMessageHandlerBuilder(
+        sp.GetRequiredService<ILogger<HttpLoggingHandler>>(),
+        sp
+    ));
 builder.Services.AddAzureOpenAIChatCompletion(aiModelName, aiEndpoint, apiKey);
-// Register AzureOpenAITextEmbeddingGenerationService as a singleton
-#pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
-builder.Services.AddAzureOpenAIEmbeddingGenerator(aiEmbeddingModel, aiEndpoint, apiKey);
-#pragma warning restore SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+ builder.Services.AddAzureOpenAIEmbeddingGenerator(aiEmbeddingModel, aiEndpoint, apiKey);
 
 builder.Services.AddTransient<Kernel>();
-    // sp => { return new Kernel(sp); });
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-// builder.Services.AddOpenApi();
+
 builder.AddKeyedRedisClient("redis");
-// builder.UseOrleans();
+
+
 builder.UseOrleans(siloBuilder =>
 {
     siloBuilder.Configure<GrainCollectionOptions>(options =>
@@ -70,9 +75,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                // First, check if there's an access_token in query string
                 var accessToken = context.Request.Query["access_token"];
-                Console.WriteLine("Access Token: " + accessToken);
                 // If the request is for our SignalR hub...
                 var path = context.HttpContext.Request.Path;
                 if (!string.IsNullOrEmpty(accessToken) &&
@@ -88,11 +91,11 @@ var connectionString = builder.Configuration.GetConnectionString("redis") ??
 builder.Services.AddSignalR()
     .AddStackExchangeRedis(connectionString, options => { options.Configuration.ChannelPrefix = "MyApp"; });
 builder.Services.AddAuthorization();
-// add cors support for local host 3000
+// add cors support for local host 4000
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend",
-        builder => builder.WithOrigins("http://localhost:3000")
+        builder => builder.WithOrigins("http://localhost:4000")
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -107,47 +110,7 @@ app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
-// app.MapPost("/", async (
-//     [FromForm] IFormFileCollection files, [FromServices] IGrainFactory grainFactory, ClaimsPrincipal claim) =>
-//     {
-//          var projectRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
-//         var blobFolder = Path.Combine(projectRoot, "BlobStorage");
-//         // creates folder if it doens't exist
-//         Directory.CreateDirectory(blobFolder);
-//         
-//         // Simulate saving the file and generating a file ID
-//         var fileMessages = new List<FileMessage>();
-//         foreach (var formFile in files)
-//         {
-//             if (formFile.Length > 0)
-//             {
-//                 var fileId = Guid.NewGuid().ToString();
-//                 var fileExtension = Path.GetExtension(formFile.FileName);
-//                 var filePath = Path.Combine(blobFolder, fileId);
-//                 using var stream = formFile.OpenReadStream();
-//                 using var fileStream = new FileStream(filePath, FileMode.Create);
-//                 await stream.CopyToAsync(fileStream);
-//
-//                 var fileMessage = new FileMessage
-//                 {
-//                     FileId = fileId,
-//                     FileName = formFile.FileName,
-//                     FileType = formFile.ContentType
-//                 };
-//                 
-//                 fileMessages.Add(fileMessage);
-//             }
-//            
-//         }
-//
-//         return Results.Ok(fileMessages);
-//         
-//     //    // Console.WriteLine(context.User.Identity.Name);
-//     //     Console.WriteLine(AppContext.BaseDirectory);
-//     //     var userId = claim.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous User";
-//     //     return new { UserId = userId };
-//     }).DisableAntiforgery().RequireCors("AllowFrontend")
-//     .WithName("GetHelloWorld");
+
 
 app.MapChatEndpoints();
 app.MapDownloadEndpoints();

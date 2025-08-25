@@ -18,14 +18,10 @@ export default function ChatPage({
     const { chatId } = use(params);
     const fetcher = useFetch();
     const fetchedRef = useRef(false);
-
-
-    console.log("Chat ID from params:", chatId);
     const inputBarRef = useRef<HTMLDivElement>(null);
     const [messageReceived, setMessageReceived] = useState(false);
     const [isConnectedToWebSocket, setIsConnectedToWebSocket] = useState(false);
     const [messages, setMessages] = useState<CustomClientMessage[]>([]);
-    console.log("Messages state initialized:", messages);
     const [inputData, setInputData] = useState<CustomClientMessage | undefined>(undefined);
     const { sendMessageToModel } = useChatHub({
         onReceiveMessage: (chatId: string, message: CustomClientMessage) => {
@@ -57,10 +53,7 @@ export default function ChatPage({
         setMessages(prev => [...prev, message]);
     };
     useEffect(() => {
-        console.log("Chat ID in useEffect:", chatId);
-        console.log(fetchedRef.current);
         if (chatId && !fetchedRef.current) {
-            console.log("Fetching messages for chat ID:", chatId);
             fetchedRef.current = true; // Set the flag to true after the first fetch
             fetcher('/api/chat/' + chatId, {
                 method: 'GET',
@@ -68,9 +61,6 @@ export default function ChatPage({
                 .then(response => response.json())
                 .then(data => {
                     // Handle the fetched data
-                    console.log(data);
-                    console.log(chatId);
-                    console.log("Setting messages state with fetched data:", data);
                     setMessages((prev) => [...data, ...prev]);
                 });
         }
@@ -78,9 +68,7 @@ export default function ChatPage({
     useEffect(() => {
         if (sessionStorage.getItem('trigger') === chatId) {
             let message = JSON.parse(sessionStorage.getItem('message') || '{}');
-            console.log("Message from sessionStorage:", message);
             if (message && message.text) {
-                console.log("Adding message from sessionStorage:", message);
                 setMessages((prev) => [...prev, message]);
                 setMessageReceived(false);
                 setInputData(message);
