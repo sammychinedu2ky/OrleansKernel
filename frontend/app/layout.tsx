@@ -1,13 +1,9 @@
 
 import { type Metadata } from 'next'
 import {
-  ClerkProvider,
-  SignInButton,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
+  ClerkProvider
 } from '@clerk/nextjs'
+import AuthButtons from './components/AuthButtons';
 import { Geist, Geist_Mono } from 'next/font/google'
 import PageSelector from './components/PageSelector';
 import './globals.css'
@@ -46,25 +42,11 @@ export default function RootLayout({
                   UtilGPT
                 </a>
                 {/* Page selector client component */}
-               
+
               </div>
 
               <div className='flex items-center gap-4'>
-                <SignedOut>
-                  <SignInButton>
-                    <button className="rounded-sm font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-                      Sign In
-                    </button>
-                  </SignInButton>
-                  <SignUpButton>
-                    <button className="bg-amber-600 rounded-sm font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 cursor-pointer">
-                      Sign Up
-                    </button>
-                  </SignUpButton>
-                </SignedOut>
-                <SignedIn>
-                  <UserButton />
-                </SignedIn>
+                <AuthButtons />
               </div>
             </div>
 
