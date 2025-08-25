@@ -1,8 +1,10 @@
 using API.Endpoints;
 using API.Hubs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
 using Orleans.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,10 +14,17 @@ var aiEndpoint = builder.Configuration["AI-Endpoint"] ??
                  throw new ArgumentNullException("AI-Endpoint is not set in configuration.");
 var aiModelName = builder.Configuration["AI-DeploymentName"] ??
                   throw new ArgumentNullException("AI-DeploymentName is not set in configuration.");
+var aiEmbeddingModel = builder.Configuration["Embedding-Model"] ??
+                       throw new ArgumentNullException("Embedding-Model is not set in configuration.");
 builder.AddServiceDefaults();
 builder.Services.AddAzureOpenAIChatCompletion(aiModelName, aiEndpoint, apiKey);
-builder.Services.AddTransient<Kernel>(
-    sp => { return new Kernel(sp); });
+// Register AzureOpenAITextEmbeddingGenerationService as a singleton
+#pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+builder.Services.AddAzureOpenAIEmbeddingGenerator(aiEmbeddingModel, aiEndpoint, apiKey);
+#pragma warning restore SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+
+builder.Services.AddTransient<Kernel>();
+    // sp => { return new Kernel(sp); });
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 // builder.Services.AddOpenApi();

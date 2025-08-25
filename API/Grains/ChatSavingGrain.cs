@@ -73,4 +73,16 @@ public class ChatSavingGrain : Grain, IChatSavingGrain
         // Write the updated state back to persistent storage
         await _chatHistory.WriteStateAsync();
     }
+
+    // set an onactivate method that sets the userId
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
+    {
+        var userId = this.GetPrimaryKeyString();
+        if (_userId.State.UserId != userId)
+        {
+            _userId.State.UserId = userId;
+            await _userId.WriteStateAsync();
+        }
+        await base.OnActivateAsync(cancellationToken);
+    }
 }

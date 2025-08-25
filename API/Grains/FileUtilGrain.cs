@@ -1,14 +1,23 @@
 using System.ComponentModel;
 using System.IO.Compression;
+using System.Linq.Expressions;
 using System.Text.Json;
 using API.Hubs;
 using API.Util;
+using Azure.AI.OpenAI;
 using ImageMagick;
+using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
+using Microsoft.SemanticKernel.Connectors.InMemory;
+using Microsoft.SemanticKernel.Functions;
+using Microsoft.SemanticKernel.Memory;
+using BindingFlags = System.Reflection.BindingFlags; // Add this if InMemoryVectorStore is from Semantic Kernel Memory
 using Kernel = Microsoft.SemanticKernel.Kernel;
 
+#pragma warning disable SKEXP0130 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+#pragma warning disable SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 namespace API.Grains;
 
 public interface IFileUtilGrain : IGrainWithStringKey
@@ -47,9 +56,11 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         await foreach (var msg in _agent.InvokeAsync(message.ToString(), threadState.State.Thread)) res.Add(msg);
         var response = res.LastOrDefault().Message.Content;
         threadState.State.Thread = (ChatHistoryAgentThread)res.LastOrDefault().Thread;
+        
         Console.WriteLine("swacky");
         Console.WriteLine(response);
-        logger.LogInformation(JsonSerializer.Serialize(threadState.State.Thread.ChatHistory));
+        // logger.LogWarning(JsonSerializer.Serialize(res[0].Thread));
+       logger.LogWarning(JsonSerializer.Serialize(threadState.State.Thread.ChatHistory));
         await threadState.WriteStateAsync();
         return JsonSerializer.Deserialize<CustomClientMessage>(response);
     }
@@ -126,7 +137,7 @@ public class FileUtilGrain : Grain, IFileUtilGrain
     }
 
     [KernelFunction("convert_from_image_to_pdf")]
-    [Description("Convert an image to a PDF using ImageMagick. Cross-platform compatible.")]
+    [Description("Convert an image to a PDF using ImageMagick.")]
     public async Task<FileMessage> ConvertFromImageToPdf(string fileId)
     {
         var filePath = Path.Combine(RetrieveBlobFolder.Get(), fileId);
@@ -182,10 +193,91 @@ public class FileUtilGrain : Grain, IFileUtilGrain
         }
     }
 
+
+    [KernelFunction("merge_pdfs")]
+    [Description("Merge multiple PDF files into a single PDF.")]
+    public async Task<FileMessage> MergePdfs(List<string> pdfIds)
+    {
+        if (pdfIds == null || pdfIds.Count == 0)
+        {
+            return new FileMessage
+            {
+                FileId = Guid.NewGuid().ToString(),
+                FileName = "Error",
+                FileType = "text/plain",
+                Text = "No PDF IDs provided for merging."
+            };
+        }
+
+        var outputFileId = Guid.NewGuid().ToString();
+        var outputFileName = $"{outputFileId}.pdf";
+        outputFileId = outputFileName;
+        var outputFileType = "application/pdf";
+        var outputFilePath = Path.Combine(RetrieveBlobFolder.Get(), outputFileName);
+
+        try
+        {
+            using var outputDocument = new MagickImageCollection();
+
+            foreach (var pdfId in pdfIds)
+            {
+                var filePath = Path.Combine(RetrieveBlobFolder.Get(), pdfId);
+                if (!File.Exists(filePath))
+                {
+                    return new FileMessage
+                    {
+                        FileId = Guid.NewGuid().ToString(),
+                        FileName = "Error",
+                        FileType = "text/plain",
+                        Text = $"File with ID {pdfId} not found."
+                    };
+                }
+
+                var readSettings = new MagickReadSettings
+                {
+                    Density = new Density(300, 300), // 300 DPI for high quality
+                    Format = MagickFormat.Pdf
+                };
+                using var inputDocument = new MagickImageCollection();
+                inputDocument.Read(filePath, readSettings);
+
+                foreach (var page in inputDocument)
+                {
+                    outputDocument.Add(page.Clone());
+                }
+            }
+
+            await outputDocument.WriteAsync(outputFilePath, MagickFormat.Pdf);
+
+            return new FileMessage
+            {
+                FileId = outputFileId,
+                FileName = outputFileName,
+                FileType = outputFileType,
+                Text = $"Merged {pdfIds.Count} PDFs into a single document."
+            };
+        }
+        catch (MagickException ex)
+        {
+            logger.LogError($"Error merging PDFs: {ex.Message}");
+            return new FileMessage
+            {
+                FileId = Guid.NewGuid().ToString(),
+                FileName = "Error",
+                FileType = "text/plain",
+                Text = $"Failed to merge PDFs: {ex.Message}"
+            };
+        }
+    }
+
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var agentKernel = kernel.Clone();
-        agentKernel.Plugins.AddFromObject(this);
+        // get configuration
+        var config = agentKernel.Services.GetRequiredService<IConfiguration>();
+        // var embeddingModel = config["Embedding-Model"] ?? throw new ArgumentNullException("Embedding-Model is not set in configuration.");
+        var embeddingGenerator = agentKernel.Services.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
+        // agentKernel.Plugins.AddFromObject(this);
         _agent = new ChatCompletionAgent
         {
             Name = "FileUtilAgent",
@@ -197,8 +289,50 @@ public class FileUtilGrain : Grain, IFileUtilGrain
             {
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
                 ResponseFormat = typeof(CustomClientMessage)
-            })
+            }),
+            UseImmutableKernel = true,
         };
+        if (threadState.State.Thread == null) threadState.State.Thread = new();
+        threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
+        vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
+        vectorDimensions: 1536,
+        functions: AvailableFunctions(),
+        maxNumberOfFunctions: 1
+       ));
         await base.OnActivateAsync(cancellationToken);
     }
+
+    private List<AIFunction> AvailableFunctions()
+    {
+        var functions = this.GetType()
+            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Where(m => m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).Any())
+            .Select(m =>
+            {
+            var attr = (KernelFunctionAttribute)m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).FirstOrDefault();
+            var descAttr = (DescriptionAttribute)m.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
+            var name = attr?.Name ?? m.Name;
+            var description = descAttr?.Description ?? "";
+            // Create delegate for the method
+            if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(description))
+                throw new InvalidOperationException($"KernelFunction '{m.Name}' must have both a name and a description.");
+
+            // Handle methods with any number of parameters (including zero)
+            var parameterTypes = m.GetParameters().Select(p => p.ParameterType).ToList();
+            parameterTypes.Add(m.ReturnType); // Add return type at the end
+
+            var delegateType = Expression.GetDelegateType(parameterTypes.ToArray());
+
+            var del = Delegate.CreateDelegate(delegateType, this, m, false);
+
+            return AIFunctionFactory.Create(del, name, description);
+            })
+            .ToList();
+
+        return functions;
+    }
+
+
 }
+#pragma warning restore SKEXP0130 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
+#pragma warning restore SKEXP0110 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
