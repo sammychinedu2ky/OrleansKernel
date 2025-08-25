@@ -51,7 +51,7 @@ public class FileUtilGrain(
         var response = res.LastOrDefault().Message.Content;
         threadState.State.Thread = (ChatHistoryAgentThread)res.LastOrDefault().Thread;
         await threadState.WriteStateAsync();
-        logger.LogInformation(JsonSerializer.Serialize(threadState.State.Thread.ChatHistory));
+        // logger.LogInformation(JsonSerializer.Serialize(threadState.State.Thread.ChatHistory));
         return JsonSerializer.Deserialize<CustomClientMessage>(response);
     }
 
