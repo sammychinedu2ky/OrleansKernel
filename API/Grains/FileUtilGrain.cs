@@ -390,8 +390,7 @@ public class FileUtilGrain(
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var agentKernel = kernel.Clone();
-        var embeddingGenerator = agentKernel.Services.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
-        var httpLogger = agentKernel.Services.GetRequiredService<ILogger<HttpLoggingHandler>>();
+        // var embeddingGenerator = agentKernel.Services.GetRequiredService<IEmbeddingGenerator<string, Embedding<float>>>();
         agentKernel.Plugins.AddFromObject(this);
         _agent = new ChatCompletionAgent
         {
@@ -408,17 +407,17 @@ public class FileUtilGrain(
             UseImmutableKernel = true,
         };
         if (threadState.State.Thread == null) threadState.State.Thread = new();
-        threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
-        vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
-        vectorDimensions: 1536,
-        maxNumberOfFunctions: 5,
-        functions: AvailableFunctions()
-        // options: new ContextualFunctionProviderOptions
-        // {
-        //     NumberOfRecentMessagesInContext = 2
+    //     threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
+    //     vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
+    //     vectorDimensions: 1536,
+    //     maxNumberOfFunctions: 5,
+    //     functions: AvailableFunctions()
+    //     // options: new ContextualFunctionProviderOptions
+    //     // {
+    //     //     NumberOfRecentMessagesInContext = 2
            
-        // }
-       ));
+    //     // }
+    //    ));
         await base.OnActivateAsync(cancellationToken);
     }
 
