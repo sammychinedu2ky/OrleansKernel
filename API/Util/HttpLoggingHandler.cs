@@ -38,10 +38,10 @@ public class HttpLoggingHandler : DelegatingHandler
         logBuilder.AppendLine($"Method: {request.Method}");
         logBuilder.AppendLine($"URI: {request.RequestUri}");
         logBuilder.AppendLine("Headers:");
-        foreach (var header in request.Headers)
-        {
-            logBuilder.AppendLine($"  {header.Key}: {string.Join(", ", header.Value)}");
-        }
+        // foreach (var header in request.Headers)
+        // {
+        //     logBuilder.AppendLine($"  {header.Key}: {string.Join(", ", header.Value)}");
+        // }
 
         if (request.Content != null)
         {
@@ -63,10 +63,10 @@ public class HttpLoggingHandler : DelegatingHandler
         logBuilder.AppendLine("=== HTTP Response ===Custom");
         logBuilder.AppendLine($"Status Code: {response.StatusCode} ({(int)response.StatusCode})");
         logBuilder.AppendLine("Headers:");
-        foreach (var header in response.Headers)
-        {
-            logBuilder.AppendLine($"  {header.Key}: {string.Join(", ", header.Value)}");
-        }
+        // foreach (var header in response.Headers)
+        // {
+        //     logBuilder.AppendLine($"  {header.Key}: {string.Join(", ", header.Value)}");
+        // }
 
         if (response.Content != null)
         {
