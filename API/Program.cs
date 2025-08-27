@@ -2,12 +2,11 @@ using API.Endpoints;
 using API.Hubs;
 using API.Util;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.SemanticKernel;
-using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
 using Orleans.Configuration;
+
 #pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,14 +20,14 @@ var aiEmbeddingModel = builder.Configuration["Embedding-Model"] ??
                        throw new ArgumentNullException("Embedding-Model is not set in configuration.");
 builder.AddServiceDefaults();
 
-builder.Services.AddTransient<HttpMessageHandlerBuilder>(sp => 
+builder.Services.AddTransient<HttpMessageHandlerBuilder>(sp =>
     new CustomHttpMessageHandlerBuilder(
         sp.GetRequiredService<ILogger<HttpLoggingHandler>>(),
         sp
     ));
 builder.Services.AddAzureOpenAIChatCompletion(aiModelName, aiEndpoint, apiKey);
 
- builder.Services.AddAzureOpenAIEmbeddingGenerator(aiEmbeddingModel, aiEndpoint, apiKey);
+builder.Services.AddAzureOpenAIEmbeddingGenerator(aiEmbeddingModel, aiEndpoint, apiKey);
 
 builder.Services.AddTransient<Kernel>();
 
@@ -109,7 +108,6 @@ app.UseCors("AllowFrontend");
 
 app.UseAuthentication();
 app.UseAuthorization();
-
 
 
 app.MapChatEndpoints();
