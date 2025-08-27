@@ -84,6 +84,7 @@ public class ChatSavingGrain : Grain, IChatSavingGrain
             _userId.State.UserId = userId;
             await _userId.WriteStateAsync();
         }
+
         await base.OnActivateAsync(cancellationToken);
     }
 }

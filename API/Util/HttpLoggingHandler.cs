@@ -1,12 +1,7 @@
+using System.Text;
 using Microsoft.Extensions.Http;
 
 namespace API.Util;
-
-using System.Net.Http;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 public class HttpLoggingHandler : DelegatingHandler
 {
@@ -17,7 +12,8 @@ public class HttpLoggingHandler : DelegatingHandler
         _logger = logger;
     }
 
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
+        CancellationToken cancellationToken)
     {
         // Log the request
         await LogRequestAsync(request);
@@ -45,7 +41,7 @@ public class HttpLoggingHandler : DelegatingHandler
 
         if (request.Content != null)
         {
-            string content = await request.Content.ReadAsStringAsync(cancellationToken: default);
+            var content = await request.Content.ReadAsStringAsync(default);
             logBuilder.AppendLine("Body:");
             logBuilder.AppendLine(content);
         }
@@ -70,7 +66,7 @@ public class HttpLoggingHandler : DelegatingHandler
 
         if (response.Content != null)
         {
-            string content = await response.Content.ReadAsStringAsync(cancellationToken: default);
+            var content = await response.Content.ReadAsStringAsync(default);
             logBuilder.AppendLine("Body:");
             logBuilder.AppendLine(content);
         }
@@ -82,8 +78,6 @@ public class HttpLoggingHandler : DelegatingHandler
         _logger.LogInformation(logBuilder.ToString());
     }
 }
-
-
 
 public class CustomHttpMessageHandlerBuilder : HttpMessageHandlerBuilder
 {

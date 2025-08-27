@@ -27,4 +27,3 @@ var frontend = builder.AddNpmApp("frontend", "../frontend", "dev")
     .WithHttpEndpoint(name: "frontend-endpoint", env: "PORT", port: 4000);
 
 builder.Build().Run();
-

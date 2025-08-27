@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.IO.Compression;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.Json;
 using API.Hubs;
 using API.Util;
@@ -9,7 +10,6 @@ using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
-using System.Reflection;
 using Kernel = Microsoft.SemanticKernel.Kernel;
 
 #pragma warning disable SKEXP0130 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
@@ -31,7 +31,9 @@ public class ThreadState
 
 public class FileUtilGrain(
     [PersistentState("history", "default")]
-        IPersistentState<ThreadState> history, Kernel _kernel, ILogger<FileUtilGrain> _logger) : Grain, IFileUtilGrain
+    IPersistentState<ThreadState> history,
+    Kernel _kernel,
+    ILogger<FileUtilGrain> _logger) : Grain, IFileUtilGrain
 
 {
     private readonly Kernel kernel = _kernel;
@@ -185,7 +187,6 @@ public class FileUtilGrain(
     public async Task<FileMessage> MergePdfs(List<string> pdfIds)
     {
         if (pdfIds == null || pdfIds.Count == 0)
-        {
             return new FileMessage
             {
                 FileId = Guid.NewGuid().ToString(),
@@ -193,7 +194,6 @@ public class FileUtilGrain(
                 FileType = "text/plain",
                 Text = "No PDF IDs provided for merging."
             };
-        }
 
         var outputFileId = Guid.NewGuid().ToString();
         var outputFileName = $"{outputFileId}.pdf";
@@ -209,7 +209,6 @@ public class FileUtilGrain(
             {
                 var filePath = Path.Combine(RetrieveBlobFolder.Get(), pdfId);
                 if (!File.Exists(filePath))
-                {
                     return new FileMessage
                     {
                         FileId = Guid.NewGuid().ToString(),
@@ -217,7 +216,6 @@ public class FileUtilGrain(
                         FileType = "text/plain",
                         Text = $"File with ID {pdfId} not found."
                     };
-                }
 
                 var readSettings = new MagickReadSettings
                 {
@@ -227,10 +225,7 @@ public class FileUtilGrain(
                 using var inputDocument = new MagickImageCollection();
                 inputDocument.Read(filePath, readSettings);
 
-                foreach (var page in inputDocument)
-                {
-                    outputDocument.Add(page.Clone());
-                }
+                foreach (var page in inputDocument) outputDocument.Add(page.Clone());
             }
 
             await outputDocument.WriteAsync(outputFilePath, MagickFormat.Pdf);
@@ -255,6 +250,7 @@ public class FileUtilGrain(
             };
         }
     }
+
     [KernelFunction("convert_docx_to_pdf")]
     [Description("Fake: Convert a DOCX file to PDF (dummy implementation)")]
     public Task<FileMessage> ConvertDocxToPdf(string fileId)
@@ -319,6 +315,7 @@ public class FileUtilGrain(
             Text = $"[FAKE] Detected language for file {fileId}: English (dummy)."
         });
     }
+
     [KernelFunction("split_pdf")]
     [Description("Fake: Split a PDF into individual pages (dummy implementation)")]
     public Task<FileMessage> SplitPdf(string fileId)
@@ -383,6 +380,7 @@ public class FileUtilGrain(
             Text = $"[FAKE] Extracted metadata from file {fileId}."
         });
     }
+
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
         var agentKernel = kernel.Clone();
@@ -400,37 +398,40 @@ public class FileUtilGrain(
                 FunctionChoiceBehavior = FunctionChoiceBehavior.Auto(),
                 ResponseFormat = typeof(CustomClientMessage)
             }),
-            UseImmutableKernel = true,
+            UseImmutableKernel = true
         };
-        if (threadState.State.Thread == null) threadState.State.Thread = new();
-    //     threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
-    //     vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
-    //     vectorDimensions: 1536,
-    //     maxNumberOfFunctions: 5,
-    //     functions: AvailableFunctions()
-    //     // options: new ContextualFunctionProviderOptions
-    //     // {
-    //     //     NumberOfRecentMessagesInContext = 2
-           
-    //     // }
-    //    ));
+        if (threadState.State.Thread == null) threadState.State.Thread = new ChatHistoryAgentThread();
+        //     threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
+        //     vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
+        //     vectorDimensions: 1536,
+        //     maxNumberOfFunctions: 5,
+        //     functions: AvailableFunctions()
+        //     // options: new ContextualFunctionProviderOptions
+        //     // {
+        //     //     NumberOfRecentMessagesInContext = 2
+
+        //     // }
+        //    ));
         await base.OnActivateAsync(cancellationToken);
     }
 
     private List<AIFunction> AvailableFunctions()
     {
-        var functions = this.GetType()
+        var functions = GetType()
             .GetMethods(BindingFlags.Public | BindingFlags.Instance)
             .Where(m => m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).Any())
             .Select(m =>
             {
-                var attr = (KernelFunctionAttribute)m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).FirstOrDefault();
-                var descAttr = (DescriptionAttribute)m.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
+                var attr = (KernelFunctionAttribute)m.GetCustomAttributes(typeof(KernelFunctionAttribute), false)
+                    .FirstOrDefault();
+                var descAttr =
+                    (DescriptionAttribute)m.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
                 var name = attr?.Name ?? m.Name;
                 var description = descAttr?.Description ?? "";
                 // Create delegate for the method
                 if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(description))
-                    throw new InvalidOperationException($"KernelFunction '{m.Name}' must have both a name and a description.");
+                    throw new InvalidOperationException(
+                        $"KernelFunction '{m.Name}' must have both a name and a description.");
 
                 // Handle methods with any number of parameters (including zero)
                 var parameterTypes = m.GetParameters().Select(p => p.ParameterType).ToList();
@@ -446,6 +447,4 @@ public class FileUtilGrain(
 
         return functions;
     }
-
-
 }

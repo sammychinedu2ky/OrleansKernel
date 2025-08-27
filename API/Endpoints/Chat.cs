@@ -87,7 +87,6 @@ public static class Chat
                 }
 
             return Results.Ok(fileMessages);
-
         }).DisableAntiforgery();
     }
 }
