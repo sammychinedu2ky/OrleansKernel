@@ -4,16 +4,12 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using API.Hubs;
 using API.Util;
-using Azure.AI.OpenAI;
 using ImageMagick;
 using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.AzureOpenAI;
-using Microsoft.SemanticKernel.Connectors.InMemory;
-using Microsoft.SemanticKernel.Functions;
-using Microsoft.SemanticKernel.Memory;
-using BindingFlags = System.Reflection.BindingFlags; // Add this if InMemoryVectorStore is from Semantic Kernel Memory
+using System.Reflection;
 using Kernel = Microsoft.SemanticKernel.Kernel;
 
 #pragma warning disable SKEXP0130 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
