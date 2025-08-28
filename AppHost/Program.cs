@@ -15,6 +15,7 @@ var aiModelName = builder.AddParameter("AI-DeploymentName");
 var aiEmbeddingModel = builder.AddParameter("Embedding-Model");
 var apiService = builder.AddProject<API>("apiservice")
     .WithHttpEndpoint(5000, name: "api")
+    .WithReplicas(2)
     .WithEnvironment("AI-ApiKey", aiKey)
     .WithEnvironment("AI-Endpoint", aiEndpoint)
     .WithEnvironment("AI-DeploymentName", aiModelName)
