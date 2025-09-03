@@ -4,7 +4,6 @@ var builder = DistributedApplication.CreateBuilder(args);
 
 var cache = builder.AddRedis("redis");
 
-
 var orleans = builder.AddOrleans("orleans")
     .WithClustering(cache)
     .WithGrainStorage("default", cache);
