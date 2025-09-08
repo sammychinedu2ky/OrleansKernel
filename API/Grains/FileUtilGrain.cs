@@ -401,50 +401,7 @@ public class FileUtilGrain(
             UseImmutableKernel = true
         };
         if (threadState.State.Thread == null) threadState.State.Thread = new ChatHistoryAgentThread();
-        //     threadState.State.Thread.AIContextProviders.Add(new ContextualFunctionProvider(
-        //     vectorStore: new InMemoryVectorStore(new InMemoryVectorStoreOptions() { EmbeddingGenerator = embeddingGenerator }),
-        //     vectorDimensions: 1536,
-        //     maxNumberOfFunctions: 5,
-        //     functions: AvailableFunctions()
-        //     // options: new ContextualFunctionProviderOptions
-        //     // {
-        //     //     NumberOfRecentMessagesInContext = 2
 
-        //     // }
-        //    ));
         await base.OnActivateAsync(cancellationToken);
-    }
-
-    private List<AIFunction> AvailableFunctions()
-    {
-        var functions = GetType()
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .Where(m => m.GetCustomAttributes(typeof(KernelFunctionAttribute), false).Any())
-            .Select(m =>
-            {
-                var attr = (KernelFunctionAttribute)m.GetCustomAttributes(typeof(KernelFunctionAttribute), false)
-                    .FirstOrDefault();
-                var descAttr =
-                    (DescriptionAttribute)m.GetCustomAttributes(typeof(DescriptionAttribute), false).FirstOrDefault();
-                var name = attr?.Name ?? m.Name;
-                var description = descAttr?.Description ?? "";
-                // Create delegate for the method
-                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(description))
-                    throw new InvalidOperationException(
-                        $"KernelFunction '{m.Name}' must have both a name and a description.");
-
-                // Handle methods with any number of parameters (including zero)
-                var parameterTypes = m.GetParameters().Select(p => p.ParameterType).ToList();
-                parameterTypes.Add(m.ReturnType); // Add return type at the end
-
-                var delegateType = Expression.GetDelegateType(parameterTypes.ToArray());
-
-                var del = Delegate.CreateDelegate(delegateType, this, m, false);
-
-                return AIFunctionFactory.Create(del, name, description);
-            })
-            .ToList();
-
-        return functions;
     }
 }
