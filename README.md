@@ -22,3 +22,7 @@ gs --version
 ```
 
 If you see a version number, Ghostscript is installed correctly.
+
+#APIs Keys needed:
+- Clerk
+- Azure OpenAI
